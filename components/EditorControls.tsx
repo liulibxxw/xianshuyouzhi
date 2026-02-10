@@ -246,6 +246,14 @@ export const MobileDraftsStrip: React.FC<EditorControlsProps> = ({
     return colors[index % colors.length];
   };
 
+  // 格式化标题：至多显示6个字，若大于6，最后两字替换为……
+  const formatDraftTitle = (title: string) => {
+    if (title.length > 6) {
+      return title.substring(0, 4) + '……';
+    }
+    return title;
+  };
+
   return (
     <div className="w-full h-44 bg-white/90 backdrop-blur-md border-t border-gray-200/80 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex flex-col pointer-events-auto transition-all">
        <div className="px-4 py-2 flex justify-between items-center border-b border-gray-100 shrink-0 h-10">
@@ -292,7 +300,7 @@ export const MobileDraftsStrip: React.FC<EditorControlsProps> = ({
               >
                  <div className={`absolute top-0 left-0 h-full w-1 ${getPresetColor(idx)}`}></div>
                  <div className="p-2 pl-3 flex flex-col h-full overflow-hidden">
-                    <div className="text-[10px] font-bold text-gray-800 leading-tight py-0.5 break-words font-serif-sc line-clamp-2">{preset.name}</div>
+                    <div className="text-xs font-bold text-gray-800 leading-tight py-0.5 break-words font-serif-sc">{formatDraftTitle(preset.name)}</div>
                     
                     <div className="mt-0.5">
                        <span className="text-[8px] text-gray-500 bg-gray-50 px-1 py-0.5 rounded inline-block max-w-full truncate border border-gray-100 font-bold">
@@ -362,6 +370,7 @@ export const MobileStylePanel: React.FC<EditorControlsProps> = ({ state, onChang
 
 export const MobileExportPanel: React.FC<EditorControlsProps> = ({ state, onExport, isExporting }) => {
   const [characterName, setCharacterName] = useState('');
+  
   const prefix = state.mode === 'cover' ? '封面' : '长文';
   const title = (state.title || '无标题').replace(/[\\/:*?"<>|]/g, '');
   const safeCharName = characterName.trim().replace(/[\\/:*?"<>|]/g, '');
@@ -433,6 +442,7 @@ export const ContentEditorModal: React.FC<{
                <XMarkIcon className="w-4 h-4" />
              </button>
           </div>
+          
           <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
             <div>
               <label className="text-xs font-bold text-gray-500 mb-1.5 block uppercase">主标题</label>
@@ -444,6 +454,7 @@ export const ContentEditorModal: React.FC<{
                 placeholder="输入标题..."
               />
             </div>
+
             <div>
               <label className="text-xs font-bold text-gray-500 mb-1.5 block uppercase">副标题 / 文案</label>
               <textarea
@@ -454,6 +465,21 @@ export const ContentEditorModal: React.FC<{
                 placeholder="输入副标题..."
               />
             </div>
+            
+            {state.layoutStyle === 'duality' && (
+              <div>
+                <label className="text-xs font-bold text-gray-500 mb-1.5 block uppercase text-purple-600">正文（里象）</label>
+                 <div className="text-[10px] text-gray-400 mb-1">仅在“假作真时”风格下显示</div>
+                 <textarea
+                  value={state.secondaryBodyText}
+                  onChange={(e) => onChange({ secondaryBodyText: e.target.value })}
+                  className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-100 focus:border-purple-300 outline-none font-sans-sc text-sm resize-none"
+                  rows={3}
+                  placeholder="第二段正文..."
+                />
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-bold text-gray-500 mb-1.5 block uppercase">分类</label>
@@ -475,13 +501,22 @@ export const ContentEditorModal: React.FC<{
               </div>
             </div>
           </div>
+          
           <div className="p-4 border-t border-gray-100 bg-gray-50/30">
-             <button onClick={() => onConfirm?.()} className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-sm shadow-md active:scale-95 transition-transform">完成</button>
+             <button 
+                onClick={() => {
+                   if (onConfirm) onConfirm();
+                }} 
+                className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-sm shadow-md active:scale-95 transition-transform"
+             >
+                完成
+             </button>
           </div>
        </div>
     </div>
   );
 };
+
 
 const EditorControls: React.FC<EditorControlsProps> = ({ 
   state, 
@@ -522,6 +557,12 @@ const EditorControls: React.FC<EditorControlsProps> = ({
     return colors[index % colors.length];
   };
 
+  // 同步格式化逻辑
+  const formatDraftTitle = (title: string) => {
+    if (title.length > 6) return title.substring(0, 4) + '……';
+    return title;
+  };
+
   const renderDraftsTab = () => (
     <div className="space-y-4 h-full flex flex-col">
        <div className="flex justify-between items-center px-1 shrink-0">
@@ -530,27 +571,55 @@ const EditorControls: React.FC<EditorControlsProps> = ({
                 我的草稿
                 <span className="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{presets.length}</span>
             </h3>
+            
             {!isSavingPreset ? (
-               <button onClick={startSavePreset} className="text-xs bg-gray-900 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-black transition-all shadow-sm active:scale-95"><PlusIcon className="w-3 h-3" />存为草稿</button>
+               <button 
+                 onClick={startSavePreset}
+                 className="text-xs bg-gray-900 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-black transition-all shadow-sm active:scale-95"
+               >
+                 <PlusIcon className="w-3 h-3" />
+                 存为草稿
+               </button>
             ) : (
                <div className="flex items-center gap-1 animate-in fade-in slide-in-from-right-5">
-                  <input autoFocus value={presetNameInput} onChange={(e) => setPresetNameInput(e.target.value)} placeholder="名称..." className="w-24 bg-gray-100 border-none rounded-md px-2 py-1 text-xs focus:ring-2 focus:ring-purple-200 outline-none" onKeyDown={(e) => e.key === 'Enter' && confirmSavePreset()} />
+                  <input 
+                    autoFocus
+                    value={presetNameInput}
+                    onChange={(e) => setPresetNameInput(e.target.value)}
+                    placeholder="名称..."
+                    className="w-24 bg-gray-100 border-none rounded-md px-2 py-1 text-xs focus:ring-2 focus:ring-purple-200 outline-none"
+                    onKeyDown={(e) => e.key === 'Enter' && confirmSavePreset()}
+                  />
                   <button onClick={confirmSavePreset} className="p-1.5 bg-green-500 text-white rounded-md hover:bg-green-600"><CheckIcon className="w-3 h-3" /></button>
                   <button onClick={() => setIsSavingPreset(false)} className="p-1.5 bg-gray-200 text-gray-500 rounded-md hover:bg-gray-300"><XMarkIcon className="w-3 h-3" /></button>
                </div>
             )}
         </div>
+
         <div className="grid grid-cols-2 gap-3 overflow-y-auto pb-4 custom-scrollbar">
           {presets.map((preset, idx) => (
-              <div key={preset.id} onClick={() => onLoadPreset?.(preset)} className="group relative bg-white border border-gray-200 rounded-xl p-3 shadow-sm hover:border-purple-300 hover:shadow-md transition-all cursor-pointer overflow-hidden flex flex-col h-32 active:scale-95 duration-200">
+              <div 
+                key={preset.id}
+                onClick={() => onLoadPreset && onLoadPreset(preset)}
+                className="group relative bg-white border border-gray-200 rounded-xl p-3 shadow-sm hover:border-purple-300 hover:shadow-md transition-all cursor-pointer overflow-hidden flex flex-col h-32 active:scale-95 duration-200"
+              >
                 <div className={`absolute top-0 left-0 w-1 h-full ${getPresetColor(idx)}`}></div>
                 <div className="pl-2 flex-1 min-w-0 flex flex-col overflow-hidden">
-                    <div className="font-bold text-sm text-gray-800 break-words mb-0.5 py-0.5 font-serif-sc line-clamp-2">{preset.name}</div>
-                    <div className="text-[10px] text-gray-500 line-clamp-3 font-serif-sc leading-relaxed opacity-80 flex-1 bg-gray-50 p-1 rounded mb-1">{preset.subtitle || preset.title}</div>
+                    <div className="font-bold text-sm text-gray-800 break-words mb-0.5 py-0.5 font-serif-sc">{formatDraftTitle(preset.name)}</div>
+                    <div className="text-[10px] text-gray-500 line-clamp-3 font-serif-sc leading-relaxed opacity-80 flex-1 bg-gray-50 p-1 rounded mb-1">
+                        {preset.subtitle || preset.title}
+                    </div>
                 </div>
                 <div className="pl-2 flex justify-between items-end pt-1 shrink-0">
-                    <span className="text-[9px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded truncate max-w-[70%] font-bold">{preset.category || '未分类'}</span>
-                    <button onClick={(e) => { e.stopPropagation(); onDeletePreset?.(preset.id); }} className="text-gray-300 hover:text-red-500 transition-colors p-1.5 -mr-1 -mb-1"><TrashIcon className="w-3.5 h-3.5" /></button>
+                    <span className="text-[9px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded truncate max-w-[70%] font-bold">
+                        {preset.category || '未分类'}
+                    </span>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); onDeletePreset && onDeletePreset(preset.id); }}
+                      className="text-gray-300 hover:text-red-500 transition-colors p-1.5 -mr-1 -mb-1"
+                    >
+                        <TrashIcon className="w-3.5 h-3.5" />
+                    </button>
                 </div>
               </div>
           ))}
@@ -561,29 +630,151 @@ const EditorControls: React.FC<EditorControlsProps> = ({
   const renderPresetsTab = () => (
     <div className="space-y-4 h-full flex flex-col">
         <div className="flex justify-between items-center px-1 shrink-0">
-            <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2"><SparklesIcon className="w-4 h-4 text-indigo-500" />高级预设库</h3>
-            <button onClick={() => setShowSaveAdvancedModal(true)} className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-indigo-700 transition-all shadow-sm active:scale-95"><PlusIcon className="w-3 h-3" />新建预设</button>
+            <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                <SparklesIcon className="w-4 h-4 text-indigo-500" />
+                高级预设库
+                <span className="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{advancedPresets.length}</span>
+            </h3>
+            
+            <button 
+                onClick={() => setShowSaveAdvancedModal(true)}
+                className="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-indigo-700 transition-all shadow-sm active:scale-95"
+            >
+                <PlusIcon className="w-3 h-3" />
+                新建预设
+            </button>
         </div>
+
         <div className="flex-1 overflow-y-auto space-y-3 pb-4 custom-scrollbar">
+            {advancedPresets.length === 0 && (
+                <div className="py-12 flex flex-col items-center text-center px-4 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
+                    <SparklesIcon className="w-8 h-8 text-gray-200 mb-2" />
+                    <p className="text-xs text-gray-400">尚未创建高级预设</p>
+                    <p className="text-[10px] text-gray-300 mt-1">预设可以保存特定的风格组合与排版规则</p>
+                </div>
+            )}
             {advancedPresets.map((preset) => (
-                <div key={preset.id} onClick={() => onApplyAdvancedPreset?.(preset)} className="group relative bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer flex flex-col gap-2 active:scale-95">
-                    <div className="flex justify-between items-start"><div className="font-bold text-sm text-gray-800 truncate">{preset.name}</div><button onClick={(e) => { e.stopPropagation(); onDeleteAdvancedPreset?.(preset.id); }} className="text-gray-300 hover:text-red-500 transition-colors"><TrashIcon className="w-3.5 h-3.5" /></button></div>
-                    {preset.rules.length > 0 && <button onClick={(e) => { e.stopPropagation(); onFormatText?.(preset.rules); }} className="mt-1 w-full py-1.5 bg-indigo-50 text-indigo-600 text-[10px] font-bold rounded-lg border border-indigo-100 hover:bg-indigo-100 transition-all flex items-center justify-center gap-1"><SparklesIcon className="w-3 h-3" />应用转化规则</button>}
+                <div 
+                    key={preset.id}
+                    onClick={() => onApplyAdvancedPreset?.(preset)}
+                    className="group relative bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer flex flex-col gap-2 active:scale-95"
+                >
+                    <div className="flex justify-between items-start">
+                        <div className="font-bold text-sm text-gray-800 truncate">{preset.name}</div>
+                        <div className="flex items-center gap-1">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setShowSaveAdvancedModal(true); /* 这里需要传递具体的编辑数据逻辑 */ }}
+                                className="text-gray-300 hover:text-indigo-500 transition-colors"
+                            >
+                                <PencilSquareIcon className="w-3.5 h-3.5" />
+                            </button>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onDeleteAdvancedPreset?.(preset.id); }}
+                                className="text-gray-300 hover:text-red-500 transition-colors"
+                            >
+                                <TrashIcon className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div className="flex gap-1.5 flex-wrap">
+                        {preset.includeStyle && <span className="text-[9px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded border border-blue-100 font-bold">风格</span>}
+                        {preset.includeContent && <span className="text-[9px] px-1.5 py-0.5 bg-green-50 text-green-600 rounded border border-green-100 font-bold">内容</span>}
+                        {preset.rules.length > 0 && <span className="text-[9px] px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded border border-purple-100 font-bold">{preset.rules.length} 条转化规则</span>}
+                    </div>
+
+                    {preset.rules.length > 0 && (
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onFormatText?.(preset.rules); }}
+                            className="mt-1 w-full py-1.5 bg-indigo-50 text-indigo-600 text-[10px] font-bold rounded-lg border border-indigo-100 hover:bg-indigo-100 transition-all flex items-center justify-center gap-1"
+                        >
+                            <SparklesIcon className="w-3 h-3" />
+                            应用转化规则
+                        </button>
+                    )}
                 </div>
             ))}
         </div>
-        {showSaveAdvancedModal && onSaveAdvancedPreset && <SavePresetModal isOpen={showSaveAdvancedModal} onClose={() => setShowSaveAdvancedModal(false)} onConfirm={onSaveAdvancedPreset} currentState={state} />}
+        
+        {showSaveAdvancedModal && onSaveAdvancedPreset && (
+            <SavePresetModal 
+                isOpen={showSaveAdvancedModal}
+                onClose={() => setShowSaveAdvancedModal(false)}
+                onConfirm={onSaveAdvancedPreset}
+                currentState={state}
+            />
+        )}
     </div>
   );
 
   const renderContentTab = () => (
     <div className="space-y-6">
       <div className="space-y-4">
-        <div><label className="text-xs font-medium text-gray-500 mb-1.5 block">主标题</label><textarea value={state.title} onChange={(e) => onChange({ title: e.target.value })} className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-100 focus:border-purple-300 outline-none resize-none font-sans-sc transition-all text-sm font-bold text-gray-800" rows={3} placeholder="输入引人注目的标题" /></div>
-        <div><label className="text-xs font-medium text-gray-500 mb-1.5 block">副标题 / 文案</label><textarea value={state.subtitle} onChange={(e) => onChange({ subtitle: e.target.value })} className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-100 focus:border-purple-300 outline-none font-sans-sc transition-all text-sm resize-none" rows={3} placeholder="一句话描述核心亮点" /></div>
+        <div className="flex items-center gap-2 opacity-60 px-1">
+             <PencilSquareIcon className="w-4 h-4" />
+             <span className="text-sm font-bold uppercase tracking-wider">文本内容</span>
+        </div>
+        
+        <div className="p-3 bg-blue-50 text-blue-700 text-xs rounded-lg border border-blue-100 leading-relaxed">
+           提示：点击正文区域即可进行富文本编辑。使用“搜索修饰”可以快速对齐或染色特定段落。在“预设”中可以保存属于你的排版模板。
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-gray-500 mb-1.5 block">主标题</label>
+          <textarea 
+            value={state.title}
+            onChange={(e) => onChange({ title: e.target.value })}
+            className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-100 focus:border-purple-300 outline-none resize-none font-sans-sc transition-all text-sm font-bold text-gray-800"
+            rows={3}
+            placeholder="输入引人注目的标题"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-gray-500 mb-1.5 block">副标题 / 文案</label>
+          <textarea
+            value={state.subtitle}
+            onChange={(e) => onChange({ subtitle: e.target.value })}
+            className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-100 focus:border-purple-300 outline-none font-sans-sc transition-all text-sm resize-none"
+            rows={3}
+            placeholder="一句话描述核心亮点"
+          />
+        </div>
+        
+        {state.layoutStyle === 'duality' && (
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1.5 block">正文（里象）</label>
+            <textarea
+              value={state.secondaryBodyText}
+              onChange={(e) => onChange({ secondaryBodyText: e.target.value })}
+              className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-100 focus:border-purple-300 outline-none font-sans-sc transition-all text-sm resize-none"
+              rows={3}
+              placeholder="仅在“假作真时”风格下显示"
+            />
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
-          <div><label className="text-xs font-medium text-gray-500 mb-1.5 block">分类标签</label><input type="text" value={state.category} onChange={(e) => onChange({ category: e.target.value })} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-100 focus:border-purple-300 outline-none font-sans-sc text-sm transition-all" /></div>
-          <div><label className="text-xs font-medium text-gray-500 mb-1.5 block">作者署名</label><input type="text" value={state.author} onChange={(e) => onChange({ author: e.target.value })} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-100 focus:border-purple-300 outline-none font-sans-sc text-sm transition-all" /></div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1.5 block">分类标签</label>
+            <input 
+              type="text"
+              value={state.category}
+              onChange={(e) => onChange({ category: e.target.value })}
+              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-100 focus:border-purple-300 outline-none font-sans-sc text-sm transition-all"
+              placeholder="例如：文稿"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1.5 block">作者署名</label>
+            <input 
+              type="text"
+              value={state.author}
+              onChange={(e) => onChange({ author: e.target.value })}
+              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-100 focus:border-purple-300 outline-none font-sans-sc text-sm transition-all"
+              placeholder="例如：琉璃"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -594,33 +785,107 @@ const EditorControls: React.FC<EditorControlsProps> = ({
     const title = (state.title || '无标题').replace(/[\\/:*?"<>|]/g, '');
     const safeCharName = characterName.trim().replace(/[\\/:*?"<>|]/g, '');
     const filename = `${prefix}-${title}${safeCharName ? `-${safeCharName}` : ''}`;
+
     return (
       <div className="space-y-6">
         <div className="space-y-4">
           <label className="text-sm font-bold text-gray-800">风格与布局</label>
+          
           <div className="grid grid-cols-4 gap-2">
-            {[ { id: 'duality', label: '假作真时' }, { id: 'minimal', label: '机能档案' }, { id: 'split', label: '电影叙事' }, { id: 'centered', label: '杂志海报' } ].map((layout) => (
-              <button key={layout.id} onClick={() => onChange({ layoutStyle: layout.id as LayoutStyle })} className={`py-2 px-1 rounded-lg border text-[10px] md:text-xs font-medium transition-all ${state.layoutStyle === layout.id ? 'border-gray-800 bg-gray-800 text-white shadow-md transform scale-[1.02]' : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}>{layout.label}</button>
+            {[
+              { id: 'duality', label: '假作真时' },
+              { id: 'minimal', label: '机能档案' },
+              { id: 'split', label: '电影叙事' },
+              { id: 'centered', label: '杂志海报' }
+            ].map((layout) => (
+              <button
+                key={layout.id}
+                onClick={() => onChange({ layoutStyle: layout.id as LayoutStyle })}
+                className={`py-2 px-1 rounded-lg border text-[10px] md:text-xs font-medium transition-all ${state.layoutStyle === layout.id ? 'border-gray-800 bg-gray-800 text-white shadow-md transform scale-[1.02]' : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}
+              >
+                {layout.label}
+              </button>
             ))}
           </div>
         </div>
+        
         <div className="pt-4 border-t border-gray-100 space-y-3">
-             <div className="space-y-2"><label className="text-xs font-bold text-gray-500 block">角色名 (可选)</label><input value={characterName} onChange={(e) => setCharacterName(e.target.value)} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:border-purple-300 transition-all" /><div className="text-[10px] text-gray-400 font-mono px-1 truncate">{filename}.png</div></div>
-             <button onClick={() => onExport && onExport(`${filename}.png`)} disabled={isExporting} className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-sm shadow-md hover:bg-black transition-all flex justify-center items-center gap-2 disabled:opacity-70 active:scale-95">{isExporting ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <ArrowDownTrayIcon className="w-4 h-4" />}导出图片</button>
+             <div className="space-y-2">
+                 <label className="text-xs font-bold text-gray-500 block">导出设置 (角色名)</label>
+                 <input 
+                    value={characterName}
+                    onChange={(e) => setCharacterName(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:border-purple-300 transition-all"
+                    placeholder="角色名 (可选)"
+                 />
+                 <div className="text-[10px] text-gray-400 font-mono px-1 truncate">
+                    {filename}.png
+                 </div>
+            </div>
+
+             <button 
+               onClick={() => onExport && onExport(`${filename}.png`)}
+               disabled={isExporting}
+               className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-sm shadow-md hover:bg-black transition-all flex justify-center items-center gap-2 disabled:opacity-70 active:scale-95"
+             >
+               {isExporting ? (
+                 <>
+                   <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                   生成中...
+                 </>
+               ) : (
+                 <>
+                   <ArrowDownTrayIcon className="w-4 h-4" />
+                   导出图片
+                 </>
+               )}
+             </button>
         </div>
       </div>
     );
   };
 
   const TabButton = ({ isActive, onClick, icon: Icon, label }: { isActive: boolean, onClick: () => void, icon: React.FC<any>, label: string }) => (
-    <button onClick={onClick} className={`flex-1 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 py-3 text-[10px] md:text-xs font-bold transition-all ${isActive ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600 border-b-2 border-transparent'}`}><Icon className="w-4 h-4 md:w-5 md:h-5" /><span>{label}</span></button>
+    <button
+      onClick={onClick}
+      className={`flex-1 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 py-3 text-[10px] md:text-xs font-bold transition-all ${
+        isActive
+          ? 'text-indigo-600 border-b-2 border-indigo-600'
+          : 'text-gray-400 hover:text-gray-600 border-b-2 border-transparent'
+      }`}
+    >
+      <Icon className="w-4 h-4 md:w-5 md:h-5" />
+      <span>{label}</span>
+    </button>
   );
 
   return (
     <div className="flex flex-col h-full font-sans-sc bg-white relative">
-      <div className="px-2 md:px-6 border-b border-gray-100 shrink-0"><div className="flex"><TabButton isActive={activeTab === 'drafts'} onClick={() => onTabChange?.('drafts')} icon={BookmarkIcon} label="草稿库" /><TabButton isActive={activeTab === 'presets'} onClick={() => onTabChange?.('presets')} icon={SparklesIcon} label="预设库" /><TabButton isActive={activeTab === 'content'} onClick={() => onTabChange?.('content')} icon={PencilSquareIcon} label="内容" /><TabButton isActive={activeTab === 'style'} onClick={() => onTabChange?.('style')} icon={PaintBrushIcon} label="样式" /></div></div>
+      <div className="hidden md:block p-6 pb-2">
+        <div className="flex justify-between items-center mb-1">
+          <div>
+             <h2 className="text-2xl font-bold text-gray-900">衔书又止</h2>
+             <p className="text-gray-400 text-xs mt-1">书不尽言，言不尽意</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-2 md:px-6 border-b border-gray-100 shrink-0">
+          <div className="flex">
+            <TabButton isActive={activeTab === 'drafts'} onClick={() => onTabChange?.('drafts')} icon={BookmarkIcon} label="我的草稿" />
+            <TabButton isActive={activeTab === 'presets'} onClick={() => onTabChange?.('presets')} icon={SparklesIcon} label="高级预设" />
+            <TabButton isActive={activeTab === 'content'} onClick={() => onTabChange?.('content')} icon={PencilSquareIcon} label="内容编辑" />
+            <TabButton isActive={activeTab === 'style'} onClick={() => onTabChange?.('style')} icon={PaintBrushIcon} label="风格布局" />
+          </div>
+      </div>
+      
       <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-28 relative custom-scrollbar">
-        <div className="space-y-6">{activeTab === 'style' && renderStyleTab()}{activeTab === 'drafts' && renderDraftsTab()}{activeTab === 'content' && renderContentTab()}{activeTab === 'presets' && renderPresetsTab()}</div>
+        <div className="space-y-6">
+          {activeTab === 'style' && renderStyleTab()}
+          {activeTab === 'drafts' && renderDraftsTab()}
+          {activeTab === 'content' && renderContentTab()}
+          {activeTab === 'presets' && renderPresetsTab()}
+        </div>
       </div>
     </div>
   );
