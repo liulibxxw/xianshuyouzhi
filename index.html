@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content" />
+    <title>衔书又止</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'pastel-cream': '#F8EFD3',
+              'pastel-peach': '#F4CFAE',
+              'pastel-salmon': '#F0A9A9',
+              'pastel-rose': '#F9DEE2',
+              'pastel-blue': '#B6DEE5',
+            },
+            fontFamily: {
+              'serif-sc': ['"Noto Serif SC"', 'serif'],
+              'serif': ['"Noto Serif SC"', 'serif'],
+              'sans': ['"Noto Serif SC"', 'serif'],
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      :root {
+        --font-main: "Noto Serif SC", serif;
+      }
+      
+      html {
+        font-size: 16px;
+        -webkit-text-size-adjust: none !important;
+        text-size-adjust: none !important;
+        height: 100%;
+        touch-action: manipulation;
+      }
+      
+      body {
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        position: fixed;
+        background-color: #f3f4f6;
+        overscroll-behavior: none;
+        font-family: var(--font-main) !important;
+      }
+      
+      /* 强制所有层级继承字体，特别是 contenteditable 区域 */
+      * {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+        box-sizing: border-box;
+      }
+      
+      h1, h2, h3, p, div, span, input, textarea, [contenteditable], [contenteditable] * {
+        font-family: var(--font-main) !important;
+      }
+
+      #root {
+        height: 100%;
+        width: 100%;
+      }
+      
+      ::-webkit-scrollbar {
+        display: none;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "@heroicons/react/": "https://aistudiocdn.com/@heroicons/react@^2.2.0/",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "vite": "https://esm.sh/vite@^7.2.7",
+    "path": "https://esm.sh/path@^0.12.7",
+    "url": "https://esm.sh/url@^0.11.4",
+    "html-to-image": "https://esm.sh/html-to-image@1.11.11"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

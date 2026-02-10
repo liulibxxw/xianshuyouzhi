@@ -1,0 +1,6 @@
+{
+  "appId": "com.xianshuyouzhi.app",
+  "appName": "衔书又止",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}

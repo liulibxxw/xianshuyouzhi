@@ -1,0 +1,78 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Web Application
+        run: npm run build
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+
+      - name: Initialize Android Project
+        run: |
+          npx cap add android || echo "Android folder already exists"
+          
+          # 搜索 icon-only.png 文件，支持不同层级的目录
+          ICON_PATH=$(find . -name "icon-only.png" | head -n 1)
+          
+          if [ -n "$ICON_PATH" ]; then
+            echo "Icon found at $ICON_PATH. Applying to Android project..."
+            RES_PATH="android/app/src/main/res"
+            
+            # 1. 覆盖所有密度的 mipmap 图标
+            for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+              mkdir -p "$RES_PATH/mipmap-$density"
+              cp "$ICON_PATH" "$RES_PATH/mipmap-$density/ic_launcher.png"
+              cp "$ICON_PATH" "$RES_PATH/mipmap-$density/ic_launcher_round.png"
+            done
+            
+            # 2. 移除自适应图标定义 (Adaptive Icons) 及其所有干扰项
+            # 在现代 Android (8.0+) 中，系统默认生成 anydpi-v26 的 XML，这会导致我们的 PNG 被忽略。
+            # 删除此目录并清理默认资源，强制系统回退到常规的 ic_launcher.png。
+            rm -rf "$RES_PATH/mipmap-anydpi-v26"
+            
+            # 3. 清理可能存在的默认 foreground 和 background 资源以及 webp 格式图标
+            find "$RES_PATH" -name "ic_launcher_foreground.*" -delete
+            find "$RES_PATH" -name "ic_launcher_background.*" -delete
+            find "$RES_PATH" -name "ic_launcher*.webp" -delete
+            
+            echo "Icon application complete. Forcing PNG-only launcher mode."
+          else
+            echo "Error: icon-only.png not found in repository! Build cannot proceed without an icon."
+            exit 1
+          fi
+          
+          npx cap sync android
+
+      - name: Build Debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
