@@ -200,7 +200,6 @@ const App: React.FC = () => {
         title: preset.title,
         subtitle: preset.subtitle,
         layoutStyle: isDualityPreset ? 'duality' : (prev.layoutStyle === 'duality' ? 'minimal' : prev.layoutStyle),
-        // 切换草稿时优先加载草稿保存的内容，若草稿内容为空则保留当前编辑器的内容（满足用户“不要清空”的需求）
         bodyText: preset.bodyText || prev.bodyText,
         secondaryBodyText: preset.secondaryBodyText || prev.secondaryBodyText,
         dualityBodyText: preset.dualityBodyText || prev.dualityBodyText,
@@ -385,7 +384,35 @@ const App: React.FC = () => {
                 </div>
             </div>
         </div>
-        {showExportModal && <ExportModal imageUrl={exportImage} isExporting={isExporting} onClose={() => setShowExportModal(false)} onDownload={() => { if (exportImage) { const link = document.createElement('a'); link.href = exportImage; link.download = exportFilename; link.click(); } }} />}
+        {showExportModal && <ExportModal imageUrl={exportImage} isExporting={isExporting} onClose={() => setShowExportModal(false)} onDownload={async () => { 
+          if (!exportImage) return;
+          const fileName = exportFilename || 'cover.png';
+          
+          // 移动端/APK 优化：尝试使用 Web Share API，这在 WebView 中比 a 标签下载更可靠
+          if (navigator.share && navigator.canShare) {
+            try {
+              const res = await fetch(exportImage);
+              const blob = await res.blob();
+              const file = new File([blob], fileName, { type: 'image/png' });
+              
+              if (navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                  files: [file],
+                  title: '保存生成的图片',
+                });
+                return; // 分享成功则退出，不再执行传统下载
+              }
+            } catch (e) {
+              console.error('Share failed, falling back to link download:', e);
+            }
+          }
+
+          // 浏览器环境或分享失败后的回退：传统的 a 标签模拟点击下载
+          const link = document.createElement('a');
+          link.href = exportImage;
+          link.download = fileName;
+          link.click();
+        }} />}
         <ContentEditorModal isOpen={showContentModal} onClose={() => { setShowContentModal(false); if (isCreatingNew) { setIsCreatingNew(false); if (presets.length > 0) handleLoadPreset(presets[0]); } }} state={effectivePreviewState} onChange={handleStateChange} onConfirm={handleModalConfirm} />
       </div>
     </div>
