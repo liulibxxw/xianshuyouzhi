@@ -340,21 +340,31 @@ const App: React.FC = () => {
     if (!exportImage) return;
 
     try {
-      // 1. 将 Base64 转换为 Blob
-      const base64Response = await fetch(exportImage);
-      const blob = await base64Response.blob();
-      const file = new File([blob], exportFilename, { type: 'image/png' });
+      // 使用同步方式解析 Base64 数据以确保保留“用户激活手势”上下文
+      // 避免使用 fetch(dataUrl) 微任务造成的延迟
+      const arr = exportImage.split(',');
+      const mime = arr[0].match(/:(.*?);/)![1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      
+      const blob = new Blob([u8arr], { type: mime });
+      const file = new File([blob], exportFilename, { type: mime });
 
-      // 2. 优先尝试 Web Share API (移动端 APK 最佳实践)
+      // 立即触发 navigator.share
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: '衔书又止-图片导出',
+          title: '衔书又止 - 导出预览',
+          text: `导出作品：${state.title || '无标题'}`,
         });
         return;
       }
 
-      // 3. 回退方案：使用 Blob URL 进行下载
+      // 如果不可用，则回退到普通 Blob 下载
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -363,11 +373,10 @@ const App: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       
-      // 清理 Blob URL
       setTimeout(() => URL.revokeObjectURL(url), 100);
     } catch (error) {
       console.error('Download error:', error);
-      // 最后的保底措施：直接尝试 Data URL 下载
+      // 最终保底：直接使用 Data URL 触发浏览器默认动作
       const link = document.createElement('a');
       link.href = exportImage;
       link.download = exportFilename;
