@@ -148,49 +148,53 @@ export const MobileSearchPanel: React.FC<EditorControlsProps> = ({ state, onChan
   };
 
   return (
-    <div className="w-full h-44 bg-white/90 backdrop-blur-md border-t border-gray-200/80 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex flex-col pointer-events-auto">
-       <div className="px-4 py-2 flex items-center border-b border-gray-100 shrink-0 h-10">
-          <span className="text-xs font-bold text-gray-500">搜索与批量修饰</span>
+    <div className="w-full h-80 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-8px_16px_-4px_rgba(0,0,0,0.1)] flex flex-col pointer-events-auto z-50">
+       <div className="px-4 py-3 flex items-center justify-between border-b border-gray-100 shrink-0 h-12">
+          <span className="text-sm font-bold text-gray-800">搜索与批量修饰</span>
+          <span className="text-[10px] text-gray-400 font-mono">MATCHES: {matches.length}</span>
        </div>
-       <div className="flex-1 overflow-y-auto px-4 py-2 custom-scrollbar flex flex-col gap-2">
+       <div className="flex-1 overflow-y-auto px-4 py-3 custom-scrollbar flex flex-col gap-3">
           <div className="flex gap-2">
               <div className="relative flex-1">
-                  <MagnifyingGlassIcon className="w-3 h-3 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input 
-                    className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-[10px] outline-none focus:border-purple-300 transition-all"
-                    placeholder="搜索并修饰正文..."
+                    className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:border-purple-300 transition-all focus:bg-white"
+                    placeholder="搜索并批量修饰正文..."
                     value={searchChar}
                     onChange={e => setSearchChar(e.target.value)}
                   />
               </div>
               <button 
                 onClick={() => setIsRegexMode(!isRegexMode)}
-                className={`px-2 rounded-lg text-[9px] font-black border transition-all ${isRegexMode ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-400 border-gray-200'}`}
+                className={`px-3 rounded-xl text-[10px] font-black border transition-all ${isRegexMode ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-gray-400 border-gray-200'}`}
               >REG</button>
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1 custom-scrollbar pb-2">
               {matches.length === 0 ? (
-                  <div className="py-4 text-center text-[9px] text-gray-400 opacity-60">输入文字批量修饰</div>
+                  <div className="py-8 text-center text-[10px] text-gray-400 opacity-60 flex flex-col items-center gap-2">
+                    <MagnifyingGlassIcon className="w-6 h-6 opacity-20" />
+                    输入文字开始批量修饰
+                  </div>
               ) : matches.map(m => (
-                  <div key={m.index} className="p-1.5 bg-gray-50 border border-gray-100 rounded-lg flex flex-col gap-1.5">
-                      <div className="flex items-start gap-1.5">
+                  <div key={m.index} className="p-2 bg-gray-50 border border-gray-100 rounded-xl flex flex-col gap-2">
+                      <div className="flex items-start gap-2">
                         <input type="checkbox" checked={selectedIndices.has(m.index)} onChange={() => {
                             const next = new Set(selectedIndices);
                             if (next.has(m.index)) next.delete(m.index); else next.add(m.index);
                             setSelectedIndices(next);
-                        }} className="mt-0.5 rounded text-purple-600 w-3 h-3" />
-                        <span className="text-[9px] text-gray-500 flex-1 line-clamp-1">{m.text}</span>
-                        <button onClick={() => { setEditingIndex(m.index); setRowEditData({ left: m.text, center: '', right: '' }); }} className="text-gray-400 hover:text-purple-600"><ArrowsRightLeftIcon className="w-3 h-3"/></button>
+                        }} className="mt-1 rounded text-purple-600 w-4 h-4" />
+                        <span className="text-[11px] text-gray-600 flex-1 line-clamp-1">{m.text}</span>
+                        <button onClick={() => { setEditingIndex(m.index); setRowEditData({ left: m.text, center: '', right: '' }); }} className="text-gray-400 hover:text-purple-600 p-1"><ArrowsRightLeftIcon className="w-4 h-4"/></button>
                       </div>
                       {editingIndex === m.index && (
-                          <div className="p-1.5 bg-white border border-purple-100 rounded flex flex-col gap-1.5">
+                          <div className="p-2 bg-white border border-purple-100 rounded-lg flex flex-col gap-2 animate-in fade-in zoom-in-95">
                               <div className="grid grid-cols-3 gap-1">
-                                  <textarea className="text-[8px] p-1 bg-gray-50 border rounded h-8" value={rowEditData.left} onChange={e => setRowEditData({...rowEditData, left: e.target.value})} placeholder="左"/>
-                                  <textarea className="text-[8px] p-1 bg-gray-50 border rounded h-8" value={rowEditData.center} onChange={e => setRowEditData({...rowEditData, center: e.target.value})} placeholder="中"/>
-                                  <textarea className="text-[8px] p-1 bg-gray-50 border rounded h-8" value={rowEditData.right} onChange={e => setRowEditData({...rowEditData, right: e.target.value})} placeholder="右"/>
+                                  <textarea className="text-[10px] p-2 bg-gray-50 border rounded-lg h-12 outline-none focus:border-purple-300" value={rowEditData.left} onChange={e => setRowEditData({...rowEditData, left: e.target.value})} placeholder="左"/>
+                                  <textarea className="text-[10px] p-2 bg-gray-50 border rounded-lg h-12 outline-none focus:border-purple-300" value={rowEditData.center} onChange={e => setRowEditData({...rowEditData, center: e.target.value})} placeholder="中"/>
+                                  <textarea className="text-[10px] p-2 bg-gray-50 border rounded-lg h-12 outline-none focus:border-purple-300" value={rowEditData.right} onChange={e => setRowEditData({...rowEditData, right: e.target.value})} placeholder="右"/>
                               </div>
-                              <button onClick={() => submitRowEdit(m.index)} className="py-1 bg-purple-600 text-white text-[8px] rounded font-bold uppercase tracking-widest">OK</button>
+                              <button onClick={() => submitRowEdit(m.index)} className="py-2 bg-purple-600 text-white text-[10px] rounded-lg font-bold uppercase tracking-widest shadow-sm">确认修改</button>
                           </div>
                       )}
                   </div>
@@ -198,19 +202,19 @@ export const MobileSearchPanel: React.FC<EditorControlsProps> = ({ state, onChan
           </div>
 
           {selectedIndices.size > 0 && (
-              <div className="bg-white p-2 rounded-lg border border-gray-200 shadow-sm flex flex-col gap-2 shrink-0">
+              <div className="bg-white p-3 rounded-2xl border border-gray-200 shadow-xl flex flex-col gap-3 shrink-0 mb-2">
                   <div className="flex gap-2">
-                      <button onClick={() => applyBatchAlign('left')} className="flex-1 py-1 bg-gray-50 border border-gray-100 rounded flex justify-center text-gray-500"><Bars3BottomLeftIcon className="w-3.5 h-3.5"/></button>
-                      <button onClick={() => applyBatchAlign('center')} className="flex-1 py-1 bg-gray-50 border border-gray-100 rounded flex justify-center text-gray-500"><Bars3Icon className="w-3.5 h-3.5"/></button>
-                      <button onClick={() => applyBatchAlign('right')} className="flex-1 py-1 bg-gray-50 border border-gray-100 rounded flex justify-center text-gray-500"><Bars3BottomRightIcon className="w-3.5 h-3.5"/></button>
+                      <button onClick={() => applyBatchAlign('left')} className="flex-1 py-2 bg-gray-50 border border-gray-100 rounded-xl flex justify-center text-gray-500 active:bg-purple-50 active:text-purple-600 transition-colors"><Bars3BottomLeftIcon className="w-5 h-5"/></button>
+                      <button onClick={() => applyBatchAlign('center')} className="flex-1 py-2 bg-gray-50 border border-gray-100 rounded-xl flex justify-center text-gray-500 active:bg-purple-50 active:text-purple-600 transition-colors"><Bars3Icon className="w-5 h-5"/></button>
+                      <button onClick={() => applyBatchAlign('right')} className="flex-1 py-2 bg-gray-50 border border-gray-100 rounded-xl flex justify-center text-gray-500 active:bg-purple-50 active:text-purple-600 transition-colors"><Bars3BottomRightIcon className="w-5 h-5"/></button>
                   </div>
-                  <div className="flex items-center gap-2">
-                      <div className="flex gap-1 overflow-x-auto flex-1">
-                          {TEXT_PALETTE.map(c => <button key={c.value} onClick={() => applyStyleToMatches({color: c.value})} className="w-4 h-4 rounded-full border border-gray-100 shrink-0" style={{backgroundColor: c.value}}/>)}
+                  <div className="flex items-center gap-3">
+                      <div className="flex gap-1.5 overflow-x-auto flex-1 custom-scrollbar py-1">
+                          {TEXT_PALETTE.map(c => <button key={c.value} onClick={() => applyStyleToMatches({color: c.value})} className="w-6 h-6 rounded-full border border-gray-200 shrink-0 hover:scale-110 transition-transform shadow-sm" style={{backgroundColor: c.value}}/>)}
                       </div>
-                      <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded border">
-                         <input type="range" min="10" max="40" value={batchFontSize} onChange={e => {setBatchFontSize(parseInt(e.target.value)); applyStyleToMatches({fontSize: `${e.target.value}px`});}} className="w-16 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600" />
-                         <span className="text-[9px] font-mono text-gray-400 w-4">{batchFontSize}</span>
+                      <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-xl border">
+                         <input type="range" min="10" max="40" value={batchFontSize} onChange={e => {setBatchFontSize(parseInt(e.target.value)); applyStyleToMatches({fontSize: `${e.target.value}px`});}} className="w-20 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600" />
+                         <span className="text-[10px] font-mono font-bold text-gray-500 w-4">{batchFontSize}</span>
                       </div>
                   </div>
               </div>
@@ -246,7 +250,6 @@ export const MobileDraftsStrip: React.FC<EditorControlsProps> = ({
     return colors[index % colors.length];
   };
 
-  // 格式化标题：至多显示6个字，若大于6，最后两字替换为……
   const formatDraftTitle = (title: string) => {
     if (title.length > 6) {
       return title.substring(0, 4) + '……';
@@ -557,7 +560,6 @@ const EditorControls: React.FC<EditorControlsProps> = ({
     return colors[index % colors.length];
   };
 
-  // 同步格式化逻辑
   const formatDraftTitle = (title: string) => {
     if (title.length > 6) return title.substring(0, 4) + '……';
     return title;
@@ -663,7 +665,7 @@ const EditorControls: React.FC<EditorControlsProps> = ({
                         <div className="font-bold text-sm text-gray-800 truncate">{preset.name}</div>
                         <div className="flex items-center gap-1">
                             <button 
-                                onClick={(e) => { e.stopPropagation(); setShowSaveAdvancedModal(true); /* 这里需要传递具体的编辑数据逻辑 */ }}
+                                onClick={(e) => { e.stopPropagation(); setShowSaveAdvancedModal(true); }}
                                 className="text-gray-300 hover:text-indigo-500 transition-colors"
                             >
                                 <PencilSquareIcon className="w-3.5 h-3.5" />

@@ -103,24 +103,50 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   const getTitleFontClass = () => {
     const length = title.length;
     let sizeClass = 'text-4xl';
+    
     if (layoutStyle === 'split') {
-        if (length > 20) sizeClass = 'text-lg'; else if (length > 15) sizeClass = 'text-xl'; else if (length > 12) sizeClass = 'text-2xl'; else if (length > 8) sizeClass = 'text-3xl'; else sizeClass = 'text-5xl';
+        if (length > 30) sizeClass = 'text-[10px]';
+        else if (length > 25) sizeClass = 'text-[12px]';
+        else if (length > 20) sizeClass = 'text-base';
+        else if (length > 15) sizeClass = 'text-xl';
+        else if (length > 12) sizeClass = 'text-2xl';
+        else if (length > 8) sizeClass = 'text-3xl';
+        else sizeClass = 'text-5xl';
     } else if (layoutStyle === 'minimal') {
-        if (length > 25) sizeClass = 'text-base'; else if (length > 20) sizeClass = 'text-lg'; else if (length > 14) sizeClass = 'text-xl'; else if (length > 10) sizeClass = 'text-2xl'; else sizeClass = 'text-4xl';
+        if (length > 35) sizeClass = 'text-[9px]';
+        else if (length > 30) sizeClass = 'text-[11px]';
+        else if (length > 25) sizeClass = 'text-xs';
+        else if (length > 20) sizeClass = 'text-base';
+        else if (length > 14) sizeClass = 'text-xl';
+        else if (length > 10) sizeClass = 'text-2xl';
+        else sizeClass = 'text-4xl';
     } else {
-        if (length > 25) sizeClass = 'text-lg'; else if (length > 18) sizeClass = 'text-xl'; else if (length > 10) sizeClass = 'text-2xl'; else if (length > 7) sizeClass = 'text-3xl'; else sizeClass = 'text-4xl';
+        if (length > 35) sizeClass = 'text-[10px]';
+        else if (length > 30) sizeClass = 'text-[12px]';
+        else if (length > 25) sizeClass = 'text-sm';
+        else if (length > 18) sizeClass = 'text-xl';
+        else if (length > 10) sizeClass = 'text-2xl';
+        else if (length > 7) sizeClass = 'text-3xl';
+        else sizeClass = 'text-4xl';
     }
-    return `font-serif-sc ${sizeClass} whitespace-nowrap overflow-visible`;
+    return `font-serif-sc ${sizeClass} leading-tight transition-all duration-300 break-words`;
   };
 
   const getSubtitleSizeClass = (baseClass: string, length: number) => {
-      if (length > 45) return 'text-[9px]'; if (length > 35) return 'text-[10px]'; if (length > 28) return 'text-[11px]'; if (length > 22) return 'text-[12px]'; if (length > 15) return 'text-[13px]'; if (length > 12) return 'text-sm'; return baseClass;
+      if (length > 65) return 'text-[7px]';
+      if (length > 55) return 'text-[8px]';
+      if (length > 45) return 'text-[9px]';
+      if (length > 35) return 'text-[10px]';
+      if (length > 28) return 'text-[11px]';
+      if (length > 22) return 'text-[12px]';
+      if (length > 15) return 'text-[13px]';
+      if (length > 12) return 'text-sm';
+      return baseClass;
   };
   
   const getBodyClasses = () => {
-      const isJustify = bodyTextAlign === 'text-justify';
-      const lastLineClass = isJustify ? '[text-align-last:left]' : '';
-      return `${bodyTextSize} ${bodyTextAlign} ${lastLineClass} [line-break:strict] break-words leading-[1.5] outline-none [&_*]:text-inherit [&_*]:font-serif-sc [&_div]:m-0 [&_p]:m-0`;
+      // 关键修改：不再从父容器强制 bodyTextAlign (如 text-justify)，由富文本内部样式控制
+      return `${bodyTextSize} break-all whitespace-pre-wrap leading-[1.5] outline-none [&_*]:text-inherit [&_*]:font-serif-sc`;
   };
 
   const renderContent = () => {
@@ -140,9 +166,9 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                              </div>
                         ))}
                      </div>
-                     <div className="flex flex-col items-end relative text-right flex-1 min-w-0 max-w-full overflow-hidden">
-                        <h1 className={`font-bold leading-none mb-1.5 z-10 ${getTitleFontClass()}`} style={{ color: textColor }}>{title}</h1>
-                        <div className={`flex items-center gap-1.5 opacity-80 font-bold font-serif-sc z-10 whitespace-nowrap overflow-visible max-w-none ${getSubtitleSizeClass('text-[12px]', subtitle.length)}`} style={{ color: textColor }}>
+                     <div className="flex flex-col items-end relative text-right flex-1 min-w-0 max-w-full">
+                        <h1 className={`font-bold leading-tight mb-1.5 z-10 ${getTitleFontClass()}`} style={{ color: textColor }}>{title}</h1>
+                        <div className={`flex items-center gap-1.5 opacity-80 font-bold font-serif-sc z-10 max-w-full overflow-hidden ${getSubtitleSizeClass('text-[12px]', subtitle.length)}`} style={{ color: textColor }}>
                            <span className="scale-75 shrink-0">○</span>
                            <span className="border-b border-current pb-0.5 opacity-90">{subtitle}</span>
                            <span className="scale-75 shrink-0">●</span>
@@ -180,7 +206,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                 <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-sm animate-pulse" style={{ backgroundColor: accentColor }}></div><span className="text-[9px] font-mono tracking-widest font-bold" style={{ color: textColor }}>SYSTEM_NORMAL</span></div>
                 <div className="flex items-center gap-2"><div className="h-1 w-12 bg-current opacity-20" style={{ color: textColor }}><div className="h-full w-2/3 bg-current" style={{ color: textColor }}></div></div><span className="text-[9px] font-mono opacity-60 tracking-widest" style={{ color: textColor }}>REC-{Math.floor(Math.random() * 9999)}</span></div>
               </div>
-              <div className="mb-2 relative shrink-0 overflow-hidden">
+              <div className="mb-2 relative shrink-0">
                 <div className="flex flex-wrap gap-2 mb-2">
                     {displayCategories.map((cat, idx) => (
                       <div key={idx} className="flex items-stretch select-none shadow-sm">
@@ -190,9 +216,9 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                       </div>
                     ))}
                 </div>
-                <h1 className={`leading-none mb-2 relative z-10 ${getTitleFontClass()}`} style={{ color: textColor }}>{title}</h1>
+                <h1 className={`leading-tight mb-2 relative z-10 ${getTitleFontClass()}`} style={{ color: textColor }}>{title}</h1>
                 <div className="w-full h-px opacity-20 my-2" style={{ backgroundColor: textColor }}></div>
-                <p className={`font-bold opacity-80 font-serif-sc whitespace-nowrap overflow-visible ${getSubtitleSizeClass('text-sm', subtitle.length)}`} style={{ color: textColor }}>/ {subtitle}</p>
+                <p className={`font-bold font-serif-sc overflow-visible ${getSubtitleSizeClass('text-sm', subtitle.length)}`} style={{ color: textColor }}>/ {subtitle}</p>
               </div>
               <div className={`relative mt-0 ${flexGrowClass} flex flex-col ${minHeightClass}`}>
                 <div className="flex items-center mb-1 shrink-0"><div className="px-2 py-0.5 text-[9px] font-bold tracking-widest text-white flex items-center justify-center" style={{ backgroundColor: textColor }}>ARCHIVE</div><div className="h-px flex-1 bg-current opacity-30 mx-2" style={{ color: textColor }}></div><div className="text-[9px] font-mono opacity-40" style={{ color: textColor }}>REF.07</div></div>
@@ -211,7 +237,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[120%] h-full bg-white/30 blur-xl rounded-full -z-10"></div>
              <span className="text-xs mb-1 tracking-[0.3em] uppercase opacity-70 font-serif-sc" style={{ color: textColor }}>The Story of</span>
              <h1 className={`mb-2 leading-tight ${getTitleFontClass()}`} style={{ color: textColor }}>{title}</h1>
-             <span className={`px-4 py-1 border-y border-current tracking-widest uppercase opacity-80 font-serif-sc whitespace-nowrap overflow-visible max-w-none ${getSubtitleSizeClass('text-xs', subtitle.length)}`} style={{ color: textColor, borderColor: `${textColor}40` }}>{subtitle}</span>
+             <span className={`px-4 py-1 border-y border-current tracking-widest uppercase opacity-80 font-serif-sc overflow-visible max-w-none ${getSubtitleSizeClass('text-xs', subtitle.length)}`} style={{ color: textColor, borderColor: `${textColor}40` }}>{subtitle}</span>
           </div>
           <div className={`relative flex flex-col justify-start pt-6 ${flexGrowClass} cursor-text ${minHeightClass}`} style={{ marginBottom: isLongText ? '0.25rem' : '0', overflow: isLongText ? 'visible' : 'hidden' }} onClick={handleContainerClick}>
              <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-[4rem] opacity-20 -z-10" style={{ backgroundColor: accentColor }}></div>
@@ -232,10 +258,10 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
       <div key="layout-centered" className={`relative z-10 p-6 flex flex-col ${flexGrowClass}`}>
         <div className={`relative border-2 border-current p-1 flex-col flex ${flexGrowClass}`} style={{ color: textColor }}>
           <div className={`relative border border-current p-4 bg-white/20 backdrop-blur-sm flex flex-col ${flexGrowClass}`}>
-            <div className="flex flex-col items-center mb-4 w-full shrink-0 flex-none overflow-hidden">
+            <div className="flex flex-col items-center mb-4 w-full shrink-0 flex-none">
               <h2 className={`w-full text-center leading-tight z-20 ${getTitleFontClass()}`}>{title}</h2>
               <div className="w-full flex justify-between items-end mt-4 min-h-[40px] gap-4 relative z-10">
-                 <div className="flex-1 pb-1 min-w-0"><div className="inline-block px-3 py-1 text-white shadow-md transform -rotate-1 origin-bottom-left whitespace-nowrap overflow-visible" style={{ backgroundColor: textColor }}><p className={`font-bold font-serif-sc whitespace-nowrap ${getSubtitleSizeClass('text-xl', subtitle.length)}`}>{subtitle}</p></div></div>
+                 <div className="flex-1 pb-1 min-w-0"><div className="inline-block px-3 py-1 text-white shadow-md transform -rotate-1 origin-bottom-left" style={{ backgroundColor: textColor }}><p className={`font-bold font-serif-sc ${getSubtitleSizeClass('text-xl', subtitle.length)}`}>{subtitle}</p></div></div>
                  <div className="flex gap-2 shrink-0">{displayCategories.map((cat, idx) => (<div key={idx} className="border-2 px-1 py-2 bg-white/80 shadow-sm relative shrink-0" style={{ borderColor: textColor }}><div className="absolute inset-[2px] border border-current opacity-50" style={{ borderColor: textColor }}></div><div className="text-[10px] font-black tracking-[0.2em] relative z-10 flex flex-col items-center">{cat.split('').map((char, charIndex) => (<span key={charIndex} className="block leading-tight">{char}</span>))}</div></div>))}</div>
               </div>
             </div>

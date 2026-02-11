@@ -26,7 +26,6 @@ const RichTextToolbar: React.FC<RichTextToolbarProps> = ({ visible, state, onCha
   const [showSizePalette, setShowSizePalette] = useState(false);
   const [palettePosition, setPalettePosition] = useState<{left: number, bottom: number} | null>(null);
 
-  // 状态检测
   const [formatStates, setFormatStates] = useState({
     bold: false,
     italic: false,
@@ -45,7 +44,6 @@ const RichTextToolbar: React.FC<RichTextToolbarProps> = ({ visible, state, onCha
   }, [state.bodyTextSize]);
 
   useEffect(() => {
-    // 初始化编辑器命令行为
     if (visible) {
         document.execCommand('styleWithCSS', false, 'true');
         document.execCommand('defaultParagraphSeparator', false, 'div');
@@ -53,13 +51,31 @@ const RichTextToolbar: React.FC<RichTextToolbarProps> = ({ visible, state, onCha
 
     const updateFormatStates = () => {
       if (!visible) return;
+      
+      const selection = window.getSelection();
+      let computedTextAlign = '';
+      if (selection && selection.rangeCount > 0) {
+          // 获取选区锚点（起始点）所在的节点
+          let node = selection.anchorNode;
+          if (node && node.nodeType === 3) node = node.parentNode;
+          
+          // 向上查找最近的块级容器
+          if (node) {
+              const block = (node as HTMLElement).closest('div, p, h1, h2, h3, li, [contenteditable="true"]');
+              if (block) {
+                  computedTextAlign = window.getComputedStyle(block).textAlign;
+              }
+          }
+      }
+
+      // 综合原生命令状态和计算样式判断，确保检测准确
       setFormatStates({
         bold: document.queryCommandState('bold'),
         italic: document.queryCommandState('italic'),
-        alignLeft: document.queryCommandState('justifyLeft'),
-        alignCenter: document.queryCommandState('justifyCenter'),
-        alignRight: document.queryCommandState('justifyRight'),
-        alignJustify: document.queryCommandState('justifyFull'),
+        alignLeft: computedTextAlign === 'left' || computedTextAlign === 'start' || document.queryCommandState('justifyLeft'),
+        alignCenter: computedTextAlign === 'center' || document.queryCommandState('justifyCenter'),
+        alignRight: computedTextAlign === 'right' || computedTextAlign === 'end' || document.queryCommandState('justifyRight'),
+        alignJustify: computedTextAlign === 'justify' || document.queryCommandState('justifyFull'),
       });
     };
 
@@ -95,25 +111,27 @@ const RichTextToolbar: React.FC<RichTextToolbarProps> = ({ visible, state, onCha
   if (!visible) return null;
 
   const handleFormat = (command: string, value?: string) => {
+    // 开启 CSS 模式，确保对齐通过 style="text-align:..." 实现，这样 getComputedStyle 才能检测到
     document.execCommand('styleWithCSS', false, 'true');
-    const selection = window.getSelection();
-    const hasSelection = selection && selection.toString().length > 0;
-    if (!hasSelection) {
-        if (command === 'justifyLeft') onChange({ bodyTextAlign: 'text-left' });
-        else if (command === 'justifyCenter') onChange({ bodyTextAlign: 'text-center' });
-        else if (command === 'justifyRight') onChange({ bodyTextAlign: 'text-right' });
-        else if (command === 'justifyFull') onChange({ bodyTextAlign: 'text-justify' });
-    }
+    
+    // 使用原生的 execCommand。原生命令能完美处理多行选中：
+    // 如果选中了多个段落，它会分别为每个段落应用对齐样式。
     document.execCommand(command, false, value);
+
+    // 立即手动触发同步
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+        let node = selection.anchorNode;
+        if (node && node.nodeType === 3) node = node.parentNode;
+        const editor = (node as HTMLElement)?.closest?.('[contenteditable="true"]');
+        if (editor) {
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+
+    // 更新按钮高亮状态
     setTimeout(() => {
-      setFormatStates({
-        bold: document.queryCommandState('bold'),
-        italic: document.queryCommandState('italic'),
-        alignLeft: document.queryCommandState('justifyLeft'),
-        alignCenter: document.queryCommandState('justifyCenter'),
-        alignRight: document.queryCommandState('justifyRight'),
-        alignJustify: document.queryCommandState('justifyFull'),
-      });
+        document.dispatchEvent(new Event('selectionchange'));
     }, 50);
   };
 
@@ -172,11 +190,6 @@ const RichTextToolbar: React.FC<RichTextToolbarProps> = ({ visible, state, onCha
   const buttonClass = "p-1.5 hover:bg-gray-50 rounded-lg text-gray-600 transition-all active:scale-95";
   const activeButtonClass = "p-1.5 bg-purple-50 text-purple-600 rounded-lg transition-all active:scale-95 border border-purple-100";
 
-  const isLeft = formatStates.alignLeft || state.bodyTextAlign === 'text-left';
-  const isCenter = formatStates.alignCenter || state.bodyTextAlign === 'text-center';
-  const isRight = formatStates.alignRight || state.bodyTextAlign === 'text-right';
-  const isJustify = formatStates.alignJustify || state.bodyTextAlign === 'text-justify';
-
   return (
     <>
         <div 
@@ -192,12 +205,12 @@ const RichTextToolbar: React.FC<RichTextToolbarProps> = ({ visible, state, onCha
                 </div>
 
                 <div className={containerClass}>
-                    <button onClick={() => handleFormat('justifyLeft')} className={isLeft ? activeButtonClass : buttonClass} title="左对齐"><Bars3BottomLeftIcon className="w-5 h-5" /></button>
-                    <button onClick={() => handleFormat('justifyCenter')} className={isCenter ? activeButtonClass : buttonClass} title="居中">
+                    <button onClick={() => handleFormat('justifyLeft')} className={formatStates.alignLeft ? activeButtonClass : buttonClass} title="左对齐"><Bars3BottomLeftIcon className="w-5 h-5" /></button>
+                    <button onClick={() => handleFormat('justifyCenter')} className={formatStates.alignCenter ? activeButtonClass : buttonClass} title="居中">
                         <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5"><path d="M3 4h18v2H3V4zm4 5h10v2H7V9zm-4 5h18v2H3v-2zm4 5h10v2H7v-2z" /></svg>
                     </button>
-                    <button onClick={() => handleFormat('justifyRight')} className={isRight ? activeButtonClass : buttonClass} title="右对齐"><Bars3BottomRightIcon className="w-5 h-5" /></button>
-                    <button onClick={() => handleFormat('justifyFull')} className={isJustify ? activeButtonClass : buttonClass} title="两端对齐"><Bars3Icon className="w-5 h-5" /></button>
+                    <button onClick={() => handleFormat('justifyRight')} className={formatStates.alignRight ? activeButtonClass : buttonClass} title="右对齐"><Bars3BottomRightIcon className="w-5 h-5" /></button>
+                    <button onClick={() => handleFormat('justifyFull')} className={formatStates.alignJustify ? activeButtonClass : buttonClass} title="两端对齐"><Bars3Icon className="w-5 h-5" /></button>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
