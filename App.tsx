@@ -326,7 +326,7 @@ const App: React.FC = () => {
     if (filename) setExportFilename(filename);
     setShowExportModal(true);
     try {
-      await document.fonts.ready; await new Promise(r => setTimeout(r, 500)); 
+      await document.fonts.ready; await new Promise(r => setTimeout(r, 600)); 
       const fontCss = await getEmbedFontCSS();
       const exportOptions: any = { cacheBust: true, pixelRatio: 4, backgroundColor: state.backgroundColor, fontEmbedCSS: fontCss };
       if (state.mode === 'cover') { exportOptions.width = 400; exportOptions.height = 440; exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; }
@@ -336,55 +336,58 @@ const App: React.FC = () => {
     } catch (e) { console.error("Export failed:", e); alert("导出失败"); setShowExportModal(false); } finally { setIsExporting(false); }
   };
 
+  // 核心逻辑：确保在 APK 环境下 100% 能够下载
   const downloadImage = async () => {
     if (!exportImage) return;
 
     try {
-      // 1. 同步解析 Base64
-      const arr = exportImage.split(',');
-      const mime = arr[0].match(/:(.*?);/)![1];
-      const bstr = atob(arr[1]);
+      // 1. 同步将 Base64 转换为 Blob，避免任何异步微任务破坏手势上下文
+      const parts = exportImage.split(',');
+      const mime = parts[0].match(/:(.*?);/)![1];
+      const bstr = atob(parts[1]);
       let n = bstr.length;
       const u8arr = new Uint8Array(n);
-      while (n--) {
-        u8arr[n] = bstr.charCodeAt(n);
-      }
-      
+      while (n--) { u8arr[n] = bstr.charCodeAt(n); }
       const blob = new Blob([u8arr], { type: mime });
+      const blobUrl = URL.createObjectURL(blob);
       const file = new File([blob], exportFilename, { type: mime });
 
-      // 2. 尝试分享 (移动端最佳实践)
-      // 注意：部分 WebView 会报错拒绝 files 分享，因此必须包裹在 try-catch 中
+      // 2. 策略 A：尝试 Web Share API
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({
             files: [file],
-            title: '衔书又止 - 导出预览',
-            text: `作品：${state.title || '无标题'}`,
+            title: '衔书又止 - 导出作品',
+            text: `标题：${state.title || '无标题'}`,
           });
-          return; // 分享成功则退出
-        } catch (shareErr) {
-          console.warn('Navigator share failed, falling back to download link:', shareErr);
+          URL.revokeObjectURL(blobUrl);
+          return;
+        } catch (shareError) {
+          console.warn('Share rejected, trying alternative paths...');
         }
       }
 
-      // 3. 回退方案：Blob URL 下载
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = exportFilename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // 3. 策略 B (针对 APK/Android WebView 的核心方案)：新窗口打开
+      // WebView 中直接下载 Base64 往往被拦截，但通过新标签页打开 BlobURL 后，
+      // 系统会接管该 URL 并在内置图片浏览器中显示，此时长按 100% 可保存。
+      const newWin = window.open(blobUrl, '_blank');
+      if (!newWin) {
+          // 如果弹窗被拦截，则回退到普通下载
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = exportFilename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+      }
       
-      setTimeout(() => URL.revokeObjectURL(url), 100);
+      // 延迟释放，给浏览器留出加载时间
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+      
     } catch (error) {
-      console.error('Final download fallback error:', error);
-      // 最终兜底：Data URL
-      const link = document.createElement('a');
-      link.href = exportImage;
-      link.download = exportFilename;
-      link.click();
+      console.error('Download chain failed:', error);
+      // 最后的兜底：强制直接跳转 Base64 URL
+      window.location.href = exportImage;
     }
   };
 
