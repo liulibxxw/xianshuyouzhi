@@ -347,8 +347,8 @@ const App: React.FC = () => {
 
   const downloadImage = async () => {
     if (!exportImage) return;
-    const timestamp = Date.now();
-    const fileName = `${exportFilename.split('.')[0]}-${timestamp}.png`;
+    // 直接使用 exportFilename，移除之前硬编码的 -${timestamp} 后缀逻辑
+    const fileName = exportFilename;
 
     if (Capacitor.isNativePlatform()) {
       try {
@@ -363,8 +363,9 @@ const App: React.FC = () => {
           });
           showToast(`已下载至系统“文档”：${fileName}`, "success");
         } catch (fileError) {
+          // 在备选的 Share 逻辑中保留临时文件的时间戳以防冲突，但不影响最终用户保存的文件名
           const tempFile = await Filesystem.writeFile({
-            path: `temp_${timestamp}.png`,
+            path: `temp_${Date.now()}.png`,
             data: base64Data,
             directory: Directory.Cache
           });
