@@ -21,6 +21,9 @@ import ExportModal from './components/ExportModal';
 import RichTextToolbar from './components/RichTextToolbar';
 import { ArrowDownTrayIcon, PaintBrushIcon, BookmarkIcon, ArrowsRightLeftIcon, SwatchIcon, SparklesIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
 import { toPng } from 'html-to-image';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@400;700;900&family=ZCOOL+QingKe+HuangYou&display=swap";
 
@@ -326,7 +329,7 @@ const App: React.FC = () => {
     if (filename) setExportFilename(filename);
     setShowExportModal(true);
     try {
-      await document.fonts.ready; await new Promise(r => setTimeout(r, 600)); 
+      await document.fonts.ready; await new Promise(r => setTimeout(r, 500)); 
       const fontCss = await getEmbedFontCSS();
       const exportOptions: any = { cacheBust: true, pixelRatio: 4, backgroundColor: state.backgroundColor, fontEmbedCSS: fontCss };
       if (state.mode === 'cover') { exportOptions.width = 400; exportOptions.height = 440; exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; }
@@ -336,58 +339,48 @@ const App: React.FC = () => {
     } catch (e) { console.error("Export failed:", e); alert("导出失败"); setShowExportModal(false); } finally { setIsExporting(false); }
   };
 
-  // 核心逻辑：确保在 APK 环境下 100% 能够下载
   const downloadImage = async () => {
     if (!exportImage) return;
 
-    try {
-      // 1. 同步将 Base64 转换为 Blob，避免任何异步微任务破坏手势上下文
-      const parts = exportImage.split(',');
-      const mime = parts[0].match(/:(.*?);/)![1];
-      const bstr = atob(parts[1]);
-      let n = bstr.length;
-      const u8arr = new Uint8Array(n);
-      while (n--) { u8arr[n] = bstr.charCodeAt(n); }
-      const blob = new Blob([u8arr], { type: mime });
-      const blobUrl = URL.createObjectURL(blob);
-      const file = new File([blob], exportFilename, { type: mime });
-
-      // 2. 策略 A：尝试 Web Share API
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const fileName = `${exportFilename.split('.')[0]}-${Date.now()}.png`;
+        const base64Data = exportImage.split(',')[1];
+        
+        // Android APK 原生环境下，优先尝试直接写入系统的 Documents 文件夹（即“下载”行为）
         try {
-          await navigator.share({
-            files: [file],
-            title: '衔书又止 - 导出作品',
-            text: `标题：${state.title || '无标题'}`,
+          await Filesystem.writeFile({
+            path: fileName,
+            data: base64Data,
+            directory: Directory.Documents,
+            recursive: true
           });
-          URL.revokeObjectURL(blobUrl);
-          return;
-        } catch (shareError) {
-          console.warn('Share rejected, trying alternative paths...');
+          alert(`图片已下载至您的系统“文档”文件夹：\n${fileName}`);
+        } catch (fileError) {
+          // 如果直接写入 Documents 失败（常见于高版本 Android 的 scoped storage 限制），
+          // 使用原生 Share 插件提供“保存到设备”的选项。
+          // 注意：此处是 Capacitor 原生 Share 插件，而非被禁用的 navigator.share。
+          const tempFile = await Filesystem.writeFile({
+            path: `temp_${Date.now()}.png`,
+            data: base64Data,
+            directory: Directory.Cache
+          });
+          
+          await Share.share({
+            title: '保存预览图',
+            url: tempFile.uri,
+          });
         }
+      } catch (error) {
+        console.error('Native download error:', error);
+        alert('无法保存图片，请确保应用已获得存储权限。');
       }
-
-      // 3. 策略 B (针对 APK/Android WebView 的核心方案)：新窗口打开
-      // WebView 中直接下载 Base64 往往被拦截，但通过新标签页打开 BlobURL 后，
-      // 系统会接管该 URL 并在内置图片浏览器中显示，此时长按 100% 可保存。
-      const newWin = window.open(blobUrl, '_blank');
-      if (!newWin) {
-          // 如果弹窗被拦截，则回退到普通下载
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          link.download = exportFilename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-      }
-      
-      // 延迟释放，给浏览器留出加载时间
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
-      
-    } catch (error) {
-      console.error('Download chain failed:', error);
-      // 最后的兜底：强制直接跳转 Base64 URL
-      window.location.href = exportImage;
+    } else {
+      // 浏览器环境保持原有的下载逻辑
+      const link = document.createElement('a');
+      link.href = exportImage;
+      link.download = exportFilename;
+      link.click();
     }
   };
 

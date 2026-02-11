@@ -16,7 +16,9 @@
     "@heroicons/react": "^2.2.0",
     "html-to-image": "^1.11.11",
     "@capacitor/core": "^6.0.0",
-    "@capacitor/android": "^6.0.0"
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/filesystem": "^6.0.0",
+    "@capacitor/share": "^6.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
