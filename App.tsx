@@ -340,8 +340,7 @@ const App: React.FC = () => {
     if (!exportImage) return;
 
     try {
-      // 使用同步方式解析 Base64 数据以确保保留“用户激活手势”上下文
-      // 避免使用 fetch(dataUrl) 微任务造成的延迟
+      // 1. 同步解析 Base64
       const arr = exportImage.split(',');
       const mime = arr[0].match(/:(.*?);/)![1];
       const bstr = atob(arr[1]);
@@ -354,17 +353,22 @@ const App: React.FC = () => {
       const blob = new Blob([u8arr], { type: mime });
       const file = new File([blob], exportFilename, { type: mime });
 
-      // 立即触发 navigator.share
+      // 2. 尝试分享 (移动端最佳实践)
+      // 注意：部分 WebView 会报错拒绝 files 分享，因此必须包裹在 try-catch 中
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: '衔书又止 - 导出预览',
-          text: `导出作品：${state.title || '无标题'}`,
-        });
-        return;
+        try {
+          await navigator.share({
+            files: [file],
+            title: '衔书又止 - 导出预览',
+            text: `作品：${state.title || '无标题'}`,
+          });
+          return; // 分享成功则退出
+        } catch (shareErr) {
+          console.warn('Navigator share failed, falling back to download link:', shareErr);
+        }
       }
 
-      // 如果不可用，则回退到普通 Blob 下载
+      // 3. 回退方案：Blob URL 下载
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -375,8 +379,8 @@ const App: React.FC = () => {
       
       setTimeout(() => URL.revokeObjectURL(url), 100);
     } catch (error) {
-      console.error('Download error:', error);
-      // 最终保底：直接使用 Data URL 触发浏览器默认动作
+      console.error('Final download fallback error:', error);
+      // 最终兜底：Data URL
       const link = document.createElement('a');
       link.href = exportImage;
       link.download = exportFilename;
