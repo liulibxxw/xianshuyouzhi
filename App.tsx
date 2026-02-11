@@ -22,23 +22,19 @@ import RichTextToolbar from './components/RichTextToolbar';
 import { ArrowDownTrayIcon, PaintBrushIcon, BookmarkIcon, ArrowsRightLeftIcon, SwatchIcon, SparklesIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
 import { toPng } from 'html-to-image';
 
-// 保持与 index.html 一致的字体加载 URL
 const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@400;700;900&family=ZCOOL+QingKe+HuangYou&display=swap";
 
 async function getEmbedFontCSS() {
     try {
         const res = await fetch(GOOGLE_FONTS_URL);
         const css = await res.text();
-        
         const urls: string[] = [];
         css.replace(/url\(([^)]+)\)/g, (match, url) => {
             urls.push(url.replace(/['"]/g, '').trim());
             return match;
         });
-
         const uniqueUrls = [...new Set(urls)];
         const fontMap = new Map<string, string>();
-
         await Promise.all(uniqueUrls.map(async (url) => {
             try {
                 const response = await fetch(url);
@@ -48,24 +44,13 @@ async function getEmbedFontCSS() {
                     reader.onloadend = () => resolve(null);
                     reader.readAsDataURL(blob);
                 });
-                if (reader.result) {
-                    fontMap.set(url, reader.result as string);
-                }
-            } catch (e) {
-                console.warn('Failed to load font file for export:', url);
-            }
+                if (reader.result) fontMap.set(url, reader.result as string);
+            } catch (e) { console.warn('Failed to load font file for export:', url); }
         }));
-
         let newCss = css;
-        fontMap.forEach((base64, url) => {
-            newCss = newCss.split(url).join(base64);
-        });
-        
+        fontMap.forEach((base64, url) => { newCss = newCss.split(url).join(base64); });
         return newCss;
-    } catch (e) {
-        console.error('Error embedding fonts for image export:', e);
-        return '';
-    }
+    } catch (e) { console.error('Error embedding fonts for image export:', e); return ''; }
 }
 
 const App: React.FC = () => {
@@ -79,33 +64,15 @@ const App: React.FC = () => {
            backgroundColor: parsed.backgroundColor || INITIAL_BG_COLOR,
            accentColor: parsed.accentColor || INITIAL_ACCENT_COLOR,
            textColor: parsed.textColor || INITIAL_TEXT_COLOR,
-           titleFont: parsed.titleFont || 'serif',
-           secondaryBodyText: parsed.secondaryBodyText || '',
            layoutStyle: parsed.layoutStyle || 'minimal',
            mode: parsed.mode || 'long-text'
         };
       }
-    } catch (e) {
-      console.error("Failed to load state", e);
-    }
+    } catch (e) { console.error("Failed to load state", e); }
     return {
-      title: INITIAL_TITLE,
-      subtitle: INITIAL_SUBTITLE,
-      bodyText: INITIAL_BODY_TEXT,
-      secondaryBodyText: "",
-      category: INITIAL_CATEGORY,
-      author: INITIAL_AUTHOR,
-      backgroundColor: INITIAL_BG_COLOR,
-      accentColor: INITIAL_ACCENT_COLOR,
-      textColor: INITIAL_TEXT_COLOR,
-      titleFont: 'serif',
-      bodyFont: 'serif',
-      layoutStyle: 'minimal',
-      mode: 'long-text',
-      bodyTextSize: 'text-[13px]',
-      bodyTextAlign: 'text-justify',
-      isBodyBold: false,
-      isBodyItalic: false,
+      title: INITIAL_TITLE, subtitle: INITIAL_SUBTITLE, bodyText: INITIAL_BODY_TEXT, secondaryBodyText: "", dualityBodyText: "", dualitySecondaryBodyText: "",
+      category: INITIAL_CATEGORY, author: INITIAL_AUTHOR, backgroundColor: INITIAL_BG_COLOR, accentColor: INITIAL_ACCENT_COLOR, textColor: INITIAL_TEXT_COLOR,
+      titleFont: 'serif', bodyFont: 'serif', layoutStyle: 'minimal', mode: 'long-text', bodyTextSize: 'text-[13px]', bodyTextAlign: 'text-justify', isBodyBold: false, isBodyItalic: false,
     };
   });
 
@@ -117,18 +84,13 @@ const App: React.FC = () => {
     try {
       const saved = localStorage.getItem('coverPresets_v3');
       return saved ? JSON.parse(saved) : DEFAULT_PRESETS;
-    } catch {
-      return DEFAULT_PRESETS;
-    }
+    } catch { return DEFAULT_PRESETS; }
   });
-
   const [advancedPresets, setAdvancedPresets] = useState<AdvancedPreset[]>(() => {
     try {
       const saved = localStorage.getItem('advancedPresets_v1');
       return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
+    } catch { return []; }
   });
 
   const [showContentModal, setShowContentModal] = useState(false);
@@ -159,35 +121,18 @@ const App: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('coverState_v3', JSON.stringify(state));
-  }, [state]);
-
-  useEffect(() => {
-    localStorage.setItem('coverPresets_v3', JSON.stringify(presets));
-  }, [presets]);
-
-  useEffect(() => {
-    localStorage.setItem('advancedPresets_v1', JSON.stringify(advancedPresets));
-  }, [advancedPresets]);
+  useEffect(() => { localStorage.setItem('coverState_v3', JSON.stringify(state)); }, [state]);
+  useEffect(() => { localStorage.setItem('coverPresets_v3', JSON.stringify(presets)); }, [presets]);
+  useEffect(() => { localStorage.setItem('advancedPresets_v1', JSON.stringify(advancedPresets)); }, [advancedPresets]);
   
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-        if (
-            bgColorPaletteRef.current && 
-            !bgColorPaletteRef.current.contains(event.target as Node) &&
-            bgColorButtonRef.current &&
-            !bgColorButtonRef.current.contains(event.target as Node)
-        ) {
+        if (bgColorPaletteRef.current && !bgColorPaletteRef.current.contains(event.target as Node) && bgColorButtonRef.current && !bgColorButtonRef.current.contains(event.target as Node)) {
             setShowBgColorPalette(false);
         }
     };
-    if (showBgColorPalette) {
-        document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-    };
+    if (showBgColorPalette) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showBgColorPalette]);
 
   useEffect(() => {
@@ -195,45 +140,59 @@ const App: React.FC = () => {
         if (previewContainerRef.current) {
             const container = previewContainerRef.current;
             const availableW = container.clientWidth - 48; 
-            const availableH = container.clientHeight - (state.mode === 'cover' ? 64 : 0); // 仅在封面模式预留垂直留白
-            
+            const availableH = container.clientHeight - (state.mode === 'cover' ? 64 : 0);
             const targetW = 400;
             const targetH = state.mode === 'cover' ? 440 : 500;
-            
             const scaleW = availableW / targetW;
             const scaleH = availableH / targetH;
-            
-            let finalScale = scaleW;
-            if (state.mode === 'cover') {
-                finalScale = Math.min(scaleW, scaleH);
-            }
-            
+            let finalScale = Math.min(scaleW, scaleH);
             setPreviewScale(Math.min(finalScale, 1));
         }
     };
     window.addEventListener('resize', handleResize);
     handleResize();
     setTimeout(handleResize, 50);
-    setTimeout(handleResize, 300);
-
     return () => window.removeEventListener('resize', handleResize);
   }, [state.mode, activeTab, state.layoutStyle]);
 
-  const handleStateChange = useCallback((newState: Partial<CoverState>) => {
-    setState(prev => ({ ...prev, ...newState }));
+  // 核心逻辑中心：强制物理隔离
+  const handleStateChange = useCallback((patch: Partial<CoverState>) => {
+    setState(prev => {
+        const redirectedPatch = { ...patch };
+        const currentLayout = redirectedPatch.layoutStyle || prev.layoutStyle;
+
+        // 1. 内容路由重定向
+        if (currentLayout === 'duality' && (patch.layoutStyle === undefined || patch.layoutStyle === 'duality')) {
+            if (patch.bodyText !== undefined) {
+                redirectedPatch.dualityBodyText = patch.bodyText;
+                delete redirectedPatch.bodyText;
+            }
+            if (patch.secondaryBodyText !== undefined) {
+                redirectedPatch.dualitySecondaryBodyText = patch.secondaryBodyText;
+                delete redirectedPatch.secondaryBodyText;
+            }
+        }
+
+        const next = { ...prev, ...redirectedPatch };
+
+        // 2. 风格切换时的物理清理逻辑：防止常规正文池被 dualityBodyText 污染
+        if (patch.layoutStyle !== undefined && patch.layoutStyle !== prev.layoutStyle) {
+            // 只要发生了风格切换，无论切入切出，常规池必须物理重置
+            // 只有处于非 duality 风格且主动加载内容时，bodyText 才会被允许存在
+            next.bodyText = "";
+            next.secondaryBodyText = "";
+        }
+        return next;
+    });
   }, []);
 
   const handleSavePreset = (name: string) => {
     const newId = Date.now().toString();
     const newPreset: ContentPreset = {
-      id: newId,
-      name,
-      title: state.title,
-      subtitle: state.subtitle,
-      bodyText: state.bodyText,
-      secondaryBodyText: state.secondaryBodyText,
-      category: state.category,
-      author: state.author
+      id: newId, name, title: state.title, subtitle: state.subtitle,
+      bodyText: state.bodyText, secondaryBodyText: state.secondaryBodyText,
+      dualityBodyText: state.dualityBodyText, dualitySecondaryBodyText: state.dualitySecondaryBodyText,
+      category: state.category, author: state.author
     };
     setPresets(prev => [newPreset, ...prev]);
     return newId;
@@ -245,15 +204,19 @@ const App: React.FC = () => {
   };
 
   const handleLoadPreset = (preset: ContentPreset) => {
+    const isDualityPreset = preset.id === 'preset_duality' || (preset.category && preset.category.includes('二象性'));
     setState(prev => ({
-      ...prev,
-      title: preset.title,
-      subtitle: preset.subtitle,
-      // 核心要求：切换草稿时优先保持预览区已有的文本，不被草稿的预设值清空
-      bodyText: prev.bodyText || preset.bodyText || '',
-      secondaryBodyText: prev.secondaryBodyText || preset.secondaryBodyText || '',
-      category: preset.category,
-      author: preset.author
+        ...prev,
+        title: preset.title,
+        subtitle: preset.subtitle,
+        layoutStyle: isDualityPreset ? 'duality' : (prev.layoutStyle === 'duality' ? 'minimal' : prev.layoutStyle),
+        // 加载预设时，如果是二象性预设，强制清空常规池。如果是普通预设，填充常规池并保留 duality 池内容。
+        dualityBodyText: isDualityPreset ? (preset.bodyText || preset.dualityBodyText || "") : (preset.dualityBodyText || prev.dualityBodyText || ""),
+        dualitySecondaryBodyText: isDualityPreset ? (preset.secondaryBodyText || preset.dualitySecondaryBodyText || "") : (preset.dualitySecondaryBodyText || prev.dualitySecondaryBodyText || ""),
+        bodyText: !isDualityPreset ? (preset.bodyText || "") : "",
+        secondaryBodyText: !isDualityPreset ? (preset.secondaryBodyText || "") : "",
+        category: preset.category,
+        author: preset.author
     }));
     setActivePresetId(preset.id);
   };
@@ -261,26 +224,14 @@ const App: React.FC = () => {
   const handleSaveAdvancedPreset = (preset: AdvancedPreset) => {
     setAdvancedPresets(prev => {
         const existingIndex = prev.findIndex(p => p.id === preset.id);
-        if (existingIndex > -1) {
-            const newList = [...prev];
-            newList[existingIndex] = preset;
-            return newList;
-        }
+        if (existingIndex > -1) { const newList = [...prev]; newList[existingIndex] = preset; return newList; }
         return [preset, ...prev];
     });
   };
 
-  const handleDeleteAdvancedPreset = (id: string) => {
-    setAdvancedPresets(prev => prev.filter(p => p.id !== id));
-  };
-
   const handleApplyAdvancedPreset = (preset: AdvancedPreset) => {
-    if (preset.coverState) {
-        setState(prev => ({ ...prev, ...preset.coverState }));
-    }
-    if (preset.rules && preset.rules.length > 0) {
-        handleFormatText(preset.rules);
-    }
+    if (preset.coverState) handleStateChange(preset.coverState);
+    if (preset.rules && preset.rules.length > 0) handleFormatText(preset.rules);
   };
 
   const handleFormatText = (rules: TransformationRule[]) => {
@@ -289,174 +240,72 @@ const App: React.FC = () => {
         if (!html) return html;
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = html;
-        const processNode = (node: ChildNode) => {
+        const nodes = Array.from(tempDiv.childNodes);
+        nodes.forEach(node => {
             let text = "";
-            let targetNode: HTMLElement | null = null;
-            if (node.nodeType === Node.ELEMENT_NODE) {
-                targetNode = node as HTMLElement;
-                if (targetNode.classList.contains('multi-align-row')) {
-                    text = Array.from(targetNode.querySelectorAll('div')).map(d => (d as HTMLElement).innerText).join(' | ');
-                } else {
-                    text = targetNode.innerText || "";
-                }
-            } else if (node.nodeType === Node.TEXT_NODE) {
-                text = node.textContent || "";
-            }
+            if (node.nodeType === Node.ELEMENT_NODE) text = (node as HTMLElement).innerText || "";
+            else if (node.nodeType === Node.TEXT_NODE) text = node.textContent || "";
             if (!text.trim()) return;
             for (const rule of rules) {
                 if (!rule.isActive) continue;
                 let regex: RegExp;
-                try {
-                    regex = new RegExp(rule.pattern, 'gi');
-                } catch (e) { continue; }
+                try { regex = new RegExp(rule.pattern, 'gi'); } catch (e) { continue; }
                 if (regex.test(text)) {
                     const fmt = rule.formatting;
                     if (rule.structure === 'multi-align-row') {
-                        const separatorRegex = /[|｜\t,，\u2014\u2015\u2500-\u257F\uFF0C]+/;
-                        const parts = text.split(separatorRegex).map(p => p.trim()).filter(Boolean);
+                        const parts = text.split(/[|｜\t,，\u2014]+/).map(p => p.trim()).filter(Boolean);
                         if (parts.length > 0) {
-                            const left = parts[0] || '';
-                            const center = parts.length > 2 ? parts[1] : (parts.length === 2 ? '' : '');
-                            const right = parts.length > 2 ? parts[2] : (parts.length === 2 ? parts[1] : '');
                             const container = document.createElement('div');
                             container.className = 'multi-align-row';
-                            container.style.display = 'grid';
-                            container.style.gridTemplateColumns = '1fr 1fr 1fr';
-                            container.style.width = '100%';
-                            container.style.gap = '4px';
-                            container.style.margin = '4px 0';
+                            container.style.display = 'grid'; container.style.gridTemplateColumns = '1fr 1fr 1fr'; container.style.width = '100%';
                             const createCol = (content: string, align: string) => {
-                                const col = document.createElement('div');
-                                col.style.textAlign = align;
-                                col.innerHTML = content || '&nbsp;';
-                                if (rule.scope === 'match' && fmt.color) col.style.color = fmt.color;
+                                const col = document.createElement('div'); col.style.textAlign = align; col.innerHTML = content || '&nbsp;';
                                 if (fmt.fontSize) col.style.fontSize = `${fmt.fontSize}px`;
                                 if (fmt.isBold) col.style.fontWeight = 'bold';
-                                if (fmt.isItalic) col.style.fontStyle = 'italic';
                                 return col;
                             };
-                            container.appendChild(createCol(left, 'left'));
-                            container.appendChild(createCol(center, 'center'));
-                            container.appendChild(createCol(right, 'right'));
-                            node.replaceWith(container);
-                            return; 
+                            container.appendChild(createCol(parts[0], 'left'));
+                            container.appendChild(createCol(parts.length > 2 ? parts[1] : "", 'center'));
+                            container.appendChild(createCol(parts.length > 2 ? parts[2] : (parts.length === 2 ? parts[1] : ""), 'right'));
+                            node.replaceWith(container); return; 
                         }
                     }
                     if (rule.scope === 'paragraph') {
-                        let element: HTMLElement;
-                        if (node.nodeType === Node.TEXT_NODE) {
-                            element = document.createElement('div');
-                            element.textContent = node.textContent;
-                        } else {
-                            element = (node as HTMLElement).cloneNode(true) as HTMLElement;
-                        }
+                        let element = node.nodeType === Node.TEXT_NODE ? document.createElement('div') : (node as HTMLElement).cloneNode(true) as HTMLElement;
+                        if (node.nodeType === Node.TEXT_NODE) element.textContent = node.textContent;
                         if (fmt.fontSize) element.style.fontSize = `${fmt.fontSize}px`;
                         if (fmt.isBold) element.style.fontWeight = 'bold';
-                        if (fmt.isItalic) element.style.fontStyle = 'italic';
                         if (fmt.textAlign) element.style.textAlign = fmt.textAlign;
-                        node.replaceWith(element);
-                        return;
+                        node.replaceWith(element); return;
                     } else if (rule.scope === 'match') {
-                        const styleStr = [
-                            fmt.color ? `color:${fmt.color}` : '',
-                            fmt.fontSize ? `font-size:${fmt.fontSize}px` : '',
-                            fmt.isBold ? `font-weight:bold` : '',
-                            fmt.isItalic ? `font-style:italic` : ''
-                        ].filter(Boolean).join(';');
+                        const styleStr = [fmt.color ? `color:${fmt.color}` : '', fmt.fontSize ? `font-size:${fmt.fontSize}px` : '', fmt.isBold ? `font-weight:bold` : ''].filter(Boolean).join(';');
                         if (node.nodeType === Node.TEXT_NODE) {
-                            const span = document.createElement('span');
-                            span.innerHTML = node.textContent!.replace(regex, match => `<span style="${styleStr}">${match}</span>`);
+                            const span = document.createElement('span'); span.innerHTML = node.textContent!.replace(regex, match => `<span style="${styleStr}">${match}</span>`);
                             node.replaceWith(span);
-                        } else if (targetNode) {
-                            targetNode.innerHTML = targetNode.innerHTML.replace(regex, match => `<span style="${styleStr}">${match}</span>`);
-                        }
+                        } else (node as HTMLElement).innerHTML = (node as HTMLElement).innerHTML.replace(regex, match => `<span style="${styleStr}">${match}</span>`);
                         return;
                     }
                 }
             }
-        };
-        const nodes = Array.from(tempDiv.childNodes);
-        nodes.forEach(processNode);
+        });
         return tempDiv.innerHTML;
       };
-      const newBodyText = processHtml(state.bodyText);
-      const newSecondaryBodyText = processHtml(state.secondaryBodyText);
-      setState(prev => ({ ...prev, bodyText: newBodyText, secondaryBodyText: newSecondaryBodyText }));
+      
+      if (state.layoutStyle === 'duality') {
+          handleStateChange({ dualityBodyText: processHtml(state.dualityBodyText), dualitySecondaryBodyText: processHtml(state.dualitySecondaryBodyText) });
+      } else {
+          handleStateChange({ bodyText: processHtml(state.bodyText), secondaryBodyText: processHtml(state.secondaryBodyText) });
+      }
   };
-
-  const handleCreateNew = () => {
-    setState(prev => ({
-        ...prev,
-        title: '',
-        subtitle: '',
-        bodyText: '',
-        secondaryBodyText: '',
-        category: '',
-        author: INITIAL_AUTHOR
-    }));
-    setActivePresetId(null);
-    setIsCreatingNew(true);
-    setShowContentModal(true);
-  }
 
   const handleModalConfirm = () => {
     if (isCreatingNew) {
-      const name = state.title || '未命名草稿';
-      const newId = handleSavePreset(name);
-      setActivePresetId(newId);
-      setIsCreatingNew(false);
+      const newId = handleSavePreset(state.title || '未命名草稿');
+      setActivePresetId(newId); setIsCreatingNew(false);
     } else if (activePresetId) {
-      setPresets(prev => prev.map(p => 
-        p.id === activePresetId 
-          ? { 
-              ...p, 
-              title: state.title, 
-              subtitle: state.subtitle, 
-              bodyText: state.bodyText, 
-              secondaryBodyText: state.secondaryBodyText,
-              category: state.category,
-              author: state.author,
-              name: state.title || p.name 
-            } 
-          : p
-      ));
+      setPresets(prev => prev.map(p => p.id === activePresetId ? { ...p, title: state.title, subtitle: state.subtitle, bodyText: state.bodyText, secondaryBodyText: state.secondaryBodyText, dualityBodyText: state.dualityBodyText, dualitySecondaryBodyText: state.dualitySecondaryBodyText, category: state.category, author: state.author, name: state.title || p.name } : p ));
     }
     setShowContentModal(false);
-  };
-
-  const handleExport = async () => {
-    if (!previewRef.current) return;
-    setIsExporting(true);
-    setExportImage(null);
-    setShowExportModal(true);
-    try {
-      await document.fonts.ready;
-      await new Promise(resolve => setTimeout(resolve, 500)); 
-
-      const fontCss = await getEmbedFontCSS();
-      const exportOptions: any = {
-        cacheBust: true,
-        pixelRatio: 4, 
-        backgroundColor: state.backgroundColor,
-        fontEmbedCSS: fontCss,
-      };
-      if (state.mode === 'cover') {
-        exportOptions.width = 400;
-        exportOptions.height = 440; 
-        exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' };
-      } else {
-        exportOptions.width = 400;
-        exportOptions.style = { width: '400px', maxWidth: 'none', transform: 'none', margin: '0' };
-      }
-      const dataUrl = await toPng(previewRef.current, exportOptions);
-      setExportImage(dataUrl);
-    } catch (error) {
-      console.error("Export failed:", error);
-      alert("导出失败，请重试");
-      setShowExportModal(false);
-    } finally {
-      setIsExporting(false);
-    }
   };
 
   const toggleMobileTab = (tab: EditorTab) => {
@@ -475,71 +324,63 @@ const App: React.FC = () => {
     setShowBgColorPalette(false);
     handleStateChange({ mode: state.mode === 'cover' ? 'long-text' : 'cover' });
   };
-  
+
+  const handleCreateNew = () => {
+    setState(prev => ({ ...prev, title: '', subtitle: '', bodyText: '', secondaryBodyText: '', dualityBodyText: '', dualitySecondaryBodyText: '', category: '', author: INITIAL_AUTHOR }));
+    setActivePresetId(null); setIsCreatingNew(true); setShowContentModal(true);
+  }
+
+  const handleExport = async () => {
+    if (!previewRef.current) return;
+    setIsExporting(true); setExportImage(null); setShowExportModal(true);
+    try {
+      await document.fonts.ready; await new Promise(r => setTimeout(r, 500)); 
+      const fontCss = await getEmbedFontCSS();
+      const exportOptions: any = { cacheBust: true, pixelRatio: 4, backgroundColor: state.backgroundColor, fontEmbedCSS: fontCss };
+      if (state.mode === 'cover') { exportOptions.width = 400; exportOptions.height = 440; exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; }
+      else { exportOptions.width = 400; exportOptions.style = { width: '400px', maxWidth: 'none', transform: 'none', margin: '0' }; }
+      const dataUrl = await toPng(previewRef.current, exportOptions);
+      setExportImage(dataUrl);
+    } catch (e) { console.error("Export failed:", e); alert("导出失败"); setShowExportModal(false); } finally { setIsExporting(false); }
+  };
+
+  // 严格隔离的有效状态计算
+  const effectivePreviewState = {
+    ...state,
+    bodyText: state.layoutStyle === 'duality' ? state.dualityBodyText : state.bodyText,
+    secondaryBodyText: state.layoutStyle === 'duality' ? state.dualitySecondaryBodyText : state.secondaryBodyText
+  };
+
   return (
     <div className="flex flex-col lg:flex-row fixed inset-0 w-full h-full supports-[height:100dvh]:h-[100dvh] bg-gray-50 overflow-hidden text-gray-800">
       <div className="hidden lg:block w-96 bg-white border-r border-gray-200 z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)] shrink-0 h-full overflow-hidden">
-        <EditorControls 
-          state={state} 
-          onChange={handleStateChange}
-          presets={presets}
-          onSavePreset={handleSavePreset}
-          onDeletePreset={handleDeletePreset}
-          onLoadPreset={handleLoadPreset}
-          onExport={handleExport}
-          activeTab={activeTab || 'style'} 
-          onTabChange={(t) => setActiveTab(t)}
-          isExporting={isExporting}
-          advancedPresets={advancedPresets}
-          onSaveAdvancedPreset={handleSaveAdvancedPreset}
-          onDeleteAdvancedPreset={handleDeleteAdvancedPreset}
-          onApplyAdvancedPreset={handleApplyAdvancedPreset}
-          onFormatText={handleFormatText}
-        />
+        <EditorControls state={effectivePreviewState} onChange={handleStateChange} presets={presets} onSavePreset={handleSavePreset} onDeletePreset={handleDeletePreset} onLoadPreset={handleLoadPreset} onExport={handleExport} activeTab={activeTab || 'style'} onTabChange={setActiveTab} isExporting={isExporting} advancedPresets={advancedPresets} onSaveAdvancedPreset={handleSaveAdvancedPreset} onDeleteAdvancedPreset={id => setAdvancedPresets(p => p.filter(x => x.id !== id))} onApplyAdvancedPreset={handleApplyAdvancedPreset} onFormatText={handleFormatText} />
       </div>
       <div className="flex-1 relative flex flex-col h-full overflow-hidden">
-        <div className="lg:hidden h-14 bg-white border-b border-gray-200 flex items-center justify-center px-4 shrink-0 z-20 flex-none">
-            <span className="font-bold text-gray-800">衔书又止</span>
-        </div>
+        <div className="lg:hidden h-14 bg-white border-b border-gray-200 flex items-center justify-center px-4 shrink-0 z-20 flex-none"><span className="font-bold text-gray-800">衔书又止</span></div>
         <div className="flex-1 relative overflow-hidden bg-gray-100/50 flex flex-col">
             <div ref={previewContainerRef} className="flex-1 relative overflow-hidden">
                <div className="absolute inset-0 overflow-y-auto overflow-x-hidden flex flex-col items-center custom-scrollbar">
                   <div className={`flex-1 flex justify-center w-full min-h-full ${state.mode === 'cover' ? 'items-center p-4 lg:p-8' : 'items-start pt-0 pb-24 px-4 lg:pt-0'}`}>
-                    <div 
-                      className="transition-transform duration-300 relative flex justify-center"
-                      style={{ 
-                        transform: `scale(${previewScale})`, 
-                        transformOrigin: state.mode === 'cover' ? 'center center' : 'top center',
-                        width: '400px',
-                      }}
-                    >
-                      <CoverPreview 
-                          ref={previewRef}
-                          state={state}
-                          onBodyTextChange={(val) => handleStateChange({ bodyText: val })}
-                          onSecondaryBodyTextChange={(val) => handleStateChange({ secondaryBodyText: val })}
-                          isExporting={isExporting}
-                      />
+                    <div className="transition-transform duration-300 relative flex justify-center" style={{ transform: `scale(${previewScale})`, transformOrigin: state.mode === 'cover' ? 'center center' : 'top center', width: '400px' }}>
+                      <CoverPreview ref={previewRef} state={effectivePreviewState} onBodyTextChange={val => handleStateChange({ bodyText: val })} onSecondaryBodyTextChange={val => handleStateChange({ secondaryBodyText: val })} isExporting={isExporting} />
                     </div>
                   </div>
                </div>
             </div>
-
             {showBgColorPalette && (
                 <div ref={bgColorPaletteRef} className="fixed z-50 bottom-32 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-md border border-gray-200 shadow-xl rounded-xl p-4 flex flex-wrap justify-center gap-3 animate-in slide-in-from-bottom-2 fade-in" style={{ width: 'max-content', maxWidth: '90vw' }}>
-                    {PALETTE.map((color) => (
-                        <button key={color.value} onClick={() => { handleStateChange({ backgroundColor: color.value }); setShowBgColorPalette(false); }} className={`w-10 h-10 rounded-full border shadow-sm hover:scale-110 transition-transform ${state.backgroundColor === color.value ? 'ring-2 ring-purple-500 ring-offset-2' : 'border-gray-200'}`} style={{ backgroundColor: color.value }} title={color.label} />
-                    ))}
+                    {PALETTE.map((color) => (<button key={color.value} onClick={() => { handleStateChange({ backgroundColor: color.value }); setShowBgColorPalette(false); }} className={`w-10 h-10 rounded-full border shadow-sm hover:scale-110 transition-transform ${state.backgroundColor === color.value ? 'ring-2 ring-purple-500 ring-offset-2' : 'border-gray-200'}`} style={{ backgroundColor: color.value }} />))}
                 </div>
             )}
             <div className="lg:hidden flex-none z-40 flex flex-col shadow-[0_-4px_20px_rgba(0,0,0,0.08)] bg-white" style={{ paddingBottom: `${keyboardHeight}px`, transition: 'padding-bottom 0.1s ease-out' }}>
                 <div className="relative w-full bg-gray-50/50 border-t border-gray-100/50">
-                    {activeTab === 'drafts' && <MobileDraftsStrip presets={presets} onLoadPreset={handleLoadPreset} onDeletePreset={handleDeletePreset} onSavePreset={handleSavePreset} state={state} onEditContent={() => setShowContentModal(true)} activePresetId={activePresetId} onCreateNew={handleCreateNew} onChange={handleStateChange} onExport={handleExport} />}
-                    {activeTab === 'style' && <MobileStylePanel state={state} onChange={handleStateChange} onExport={handleExport} />}
-                    {activeTab === 'export' && <MobileExportPanel state={state} onChange={handleStateChange} onExport={handleExport} isExporting={isExporting} />}
-                    {activeTab === 'presets' && <MobilePresetPanel state={state} presets={advancedPresets} onSavePreset={handleSaveAdvancedPreset} onDeletePreset={handleDeleteAdvancedPreset} onApplyPreset={handleApplyAdvancedPreset} onFormatText={handleFormatText} />}
-                    {activeTab === 'search' && <MobileSearchPanel state={state} onChange={handleStateChange} onExport={handleExport} />}
-                    {(!activeTab) && <RichTextToolbar visible={true} state={state} onChange={handleStateChange} />}
+                    {activeTab === 'drafts' && <MobileDraftsStrip presets={presets} onLoadPreset={handleLoadPreset} onDeletePreset={handleDeletePreset} onSavePreset={handleSavePreset} state={effectivePreviewState} onEditContent={() => setShowContentModal(true)} activePresetId={activePresetId} onCreateNew={handleCreateNew} onChange={handleStateChange} onExport={handleExport} />}
+                    {activeTab === 'style' && <MobileStylePanel state={effectivePreviewState} onChange={handleStateChange} onExport={handleExport} />}
+                    {activeTab === 'export' && <MobileExportPanel state={effectivePreviewState} onChange={handleStateChange} onExport={handleExport} isExporting={isExporting} />}
+                    {activeTab === 'presets' && <MobilePresetPanel state={effectivePreviewState} presets={advancedPresets} onSavePreset={handleSaveAdvancedPreset} onDeletePreset={id => setAdvancedPresets(p => p.filter(x => x.id !== id))} onApplyPreset={handleApplyAdvancedPreset} onFormatText={handleFormatText} />}
+                    {activeTab === 'search' && <MobileSearchPanel state={effectivePreviewState} onChange={handleStateChange} onExport={handleExport} />}
+                    {!activeTab && <RichTextToolbar visible={true} state={effectivePreviewState} onChange={handleStateChange} />}
                 </div>
                 <div className="h-16 bg-white border-t border-gray-100 flex items-center justify-around px-2 relative z-50 shrink-0">
                       <button onClick={() => toggleMobileTab('drafts')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'drafts' ? 'text-purple-600' : 'text-gray-500'}`}><BookmarkIcon className="w-6 h-6" /><span className="text-[10px] font-bold">草稿</span></button>
@@ -553,7 +394,7 @@ const App: React.FC = () => {
             </div>
         </div>
         {showExportModal && <ExportModal imageUrl={exportImage} isExporting={isExporting} onClose={() => setShowExportModal(false)} onDownload={() => { if (exportImage) { const link = document.createElement('a'); link.href = exportImage; link.download = `cover-${Date.now()}.png`; link.click(); } }} />}
-        <ContentEditorModal isOpen={showContentModal} onClose={() => { setShowContentModal(false); if (isCreatingNew) { setIsCreatingNew(false); if (presets.length > 0) handleLoadPreset(presets[0]); } }} state={state} onChange={handleStateChange} onConfirm={handleModalConfirm} />
+        <ContentEditorModal isOpen={showContentModal} onClose={() => { setShowContentModal(false); if (isCreatingNew) { setIsCreatingNew(false); if (presets.length > 0) handleLoadPreset(presets[0]); } }} state={effectivePreviewState} onChange={handleStateChange} onConfirm={handleModalConfirm} />
       </div>
     </div>
   );
