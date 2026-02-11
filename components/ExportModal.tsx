@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { ArrowDownTrayIcon, XMarkIcon, ArrowPathIcon, InformationCircleIcon } from '@heroicons/react/24/solid';
+import { ArrowDownTrayIcon, XMarkIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 
 interface ExportModalProps {
   imageUrl: string | null;
@@ -32,7 +31,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageUrl, isExporting, onClos
           </button>
         </div>
 
-        <div className="flex-1 min-h-0 bg-gray-100/80 rounded-lg overflow-auto p-4 border border-gray-200 relative">
+        <div className="flex-1 min-h-0 bg-gray-100/80 rounded-lg overflow-auto p-4 border border-gray-200">
           {isExporting ? (
             <div className="flex h-full w-full flex-col items-center justify-center gap-4 text-gray-500">
               <ArrowPathIcon className="w-10 h-10 animate-spin text-purple-500" />
@@ -40,23 +39,11 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageUrl, isExporting, onClos
               <p className="text-xs text-gray-400">长图模式可能需要更长时间</p>
             </div>
           ) : imageUrl ? (
-            <div className="flex flex-col items-center gap-4">
-              {/* 这里的图片需要确保是可以被浏览器识别的长按目标 */}
-              <img 
-                src={imageUrl} 
-                alt="导出预览" 
-                className="mx-auto shadow-lg rounded-sm cursor-pointer select-none"
-                style={{ WebkitTouchCallout: 'default' }} // 确保 iOS/Android 唤起原生菜单
-              />
-              
-              {/* 针对 APK/移动端环境的温馨提示 */}
-              <div className="lg:hidden flex items-center gap-2 bg-purple-50 border border-purple-100 px-4 py-2 rounded-xl text-purple-700">
-                <InformationCircleIcon className="w-5 h-5 shrink-0" />
-                <p className="text-[11px] leading-tight font-bold">
-                  APK 环境下如点击下载无效，请直接<span className="text-purple-900 underline">长按上方图片</span>保存至相册
-                </p>
-              </div>
-            </div>
+            <img 
+              src={imageUrl} 
+              alt="导出预览" 
+              className="mx-auto shadow-lg rounded-sm"
+            />
           ) : null}
         </div>
 
@@ -73,7 +60,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageUrl, isExporting, onClos
             className="px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-br from-purple-600 to-blue-500 rounded-lg shadow-md hover:from-purple-700 hover:to-blue-600 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             <ArrowDownTrayIcon className="w-5 h-5" />
-            下载/分享图片
+            下载图片
           </button>
         </div>
       </div>

@@ -24,23 +24,6 @@ import { toPng } from 'html-to-image';
 
 const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@400;700;900&family=ZCOOL+QingKe+HuangYou&display=swap";
 
-// 辅助函数：将 Base64 转换为 Blob
-function base64ToBlob(base64Data: string, contentType: string = 'image/png'): Blob {
-    const sliceSize = 512;
-    const byteCharacters = atob(base64Data.split(',')[1]);
-    const byteArrays = [];
-    for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
-        const slice = byteCharacters.slice(offset, offset + sliceSize);
-        const byteNumbers = new Array(slice.length);
-        for (let i = 0; i < slice.length; i++) {
-            byteNumbers[i] = slice.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        byteArrays.push(byteArray);
-    }
-    return new Blob(byteArrays, { type: contentType });
-}
-
 async function getEmbedFontCSS() {
     try {
         const res = await fetch(GOOGLE_FONTS_URL);
@@ -353,6 +336,45 @@ const App: React.FC = () => {
     } catch (e) { console.error("Export failed:", e); alert("导出失败"); setShowExportModal(false); } finally { setIsExporting(false); }
   };
 
+  const downloadImage = async () => {
+    if (!exportImage) return;
+
+    try {
+      // 1. 将 Base64 转换为 Blob
+      const base64Response = await fetch(exportImage);
+      const blob = await base64Response.blob();
+      const file = new File([blob], exportFilename, { type: 'image/png' });
+
+      // 2. 优先尝试 Web Share API (移动端 APK 最佳实践)
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: '衔书又止-图片导出',
+        });
+        return;
+      }
+
+      // 3. 回退方案：使用 Blob URL 进行下载
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = exportFilename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // 清理 Blob URL
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+    } catch (error) {
+      console.error('Download error:', error);
+      // 最后的保底措施：直接尝试 Data URL 下载
+      const link = document.createElement('a');
+      link.href = exportImage;
+      link.download = exportFilename;
+      link.click();
+    }
+  };
+
   const effectivePreviewState = {
     ...state,
     bodyText: state.layoutStyle === 'duality' ? state.dualityBodyText : state.bodyText,
@@ -401,37 +423,7 @@ const App: React.FC = () => {
                 </div>
             </div>
         </div>
-        {showExportModal && <ExportModal imageUrl={exportImage} isExporting={isExporting} onClose={() => setShowExportModal(false)} onDownload={async () => { 
-          if (!exportImage) return;
-          const fileName = exportFilename || 'cover.png';
-          
-          // 获取原始 Blob
-          const blob = base64ToBlob(exportImage);
-          const file = new File([blob], fileName, { type: 'image/png' });
-
-          // 移动端/APK 环境核心优化：使用 Web Share API
-          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            try {
-              await navigator.share({
-                files: [file],
-                title: '保存生成的图片',
-              });
-              return; // 成功分享后直接返回
-            } catch (e) {
-              console.error('Share failed, attempting fallback download:', e);
-            }
-          }
-
-          // 降级方案：使用 Blob URL 代替 DataURL 模拟点击（对移动端 WebView 更友好）
-          const blobUrl = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          link.download = fileName;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
-        }} />}
+        {showExportModal && <ExportModal imageUrl={exportImage} isExporting={isExporting} onClose={() => setShowExportModal(false)} onDownload={downloadImage} />}
         <ContentEditorModal isOpen={showContentModal} onClose={() => { setShowContentModal(false); if (isCreatingNew) { setIsCreatingNew(false); if (presets.length > 0) handleLoadPreset(presets[0]); } }} state={effectivePreviewState} onChange={handleStateChange} onConfirm={handleModalConfirm} />
       </div>
     </div>
