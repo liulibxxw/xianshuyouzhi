@@ -19,7 +19,7 @@ import EditorControls, { MobileDraftsStrip, MobileStylePanel, ContentEditorModal
 import { MobilePresetPanel } from './components/PresetPanel';
 import ExportModal from './components/ExportModal';
 import RichTextToolbar from './components/RichTextToolbar';
-import { ArrowDownTrayIcon, PaintBrushIcon, BookmarkIcon, ArrowsRightLeftIcon, SwatchIcon, SparklesIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
+import { ArrowDownTrayIcon, PaintBrushIcon, BookmarkIcon, ArrowsRightLeftIcon, SwatchIcon, SparklesIcon, MagnifyingGlassIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import { toPng } from 'html-to-image';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -97,6 +97,7 @@ const App: React.FC = () => {
     } catch { return []; }
   });
 
+  const [toast, setToast] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [showContentModal, setShowContentModal] = useState(false);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
@@ -108,6 +109,11 @@ const App: React.FC = () => {
   const bgColorPaletteRef = useRef<HTMLDivElement>(null);
   const bgColorButtonRef = useRef<HTMLButtonElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  }, []);
 
   useEffect(() => {
     if (!window.visualViewport) return;
@@ -336,18 +342,18 @@ const App: React.FC = () => {
       else { exportOptions.width = 400; exportOptions.style = { width: '400px', maxWidth: 'none', transform: 'none', margin: '0' }; }
       const dataUrl = await toPng(previewRef.current, exportOptions);
       setExportImage(dataUrl);
-    } catch (e) { console.error("Export failed:", e); alert("导出失败"); setShowExportModal(false); } finally { setIsExporting(false); }
+    } catch (e) { console.error("Export failed:", e); showToast("导出失败", "error"); setShowExportModal(false); } finally { setIsExporting(false); }
   };
 
   const downloadImage = async () => {
     if (!exportImage) return;
+    const timestamp = Date.now();
+    const fileName = `${exportFilename.split('.')[0]}-${timestamp}.png`;
 
     if (Capacitor.isNativePlatform()) {
       try {
-        const fileName = `${exportFilename.split('.')[0]}-${Date.now()}.png`;
         const base64Data = exportImage.split(',')[1];
         
-        // Android APK 原生环境下，优先尝试直接写入系统的 Documents 文件夹（即“下载”行为）
         try {
           await Filesystem.writeFile({
             path: fileName,
@@ -355,13 +361,10 @@ const App: React.FC = () => {
             directory: Directory.Documents,
             recursive: true
           });
-          alert(`图片已下载至您的系统“文档”文件夹：\n${fileName}`);
+          showToast(`已下载至系统“文档”：${fileName}`, "success");
         } catch (fileError) {
-          // 如果直接写入 Documents 失败（常见于高版本 Android 的 scoped storage 限制），
-          // 使用原生 Share 插件提供“保存到设备”的选项。
-          // 注意：此处是 Capacitor 原生 Share 插件，而非被禁用的 navigator.share。
           const tempFile = await Filesystem.writeFile({
-            path: `temp_${Date.now()}.png`,
+            path: `temp_${timestamp}.png`,
             data: base64Data,
             directory: Directory.Cache
           });
@@ -373,14 +376,14 @@ const App: React.FC = () => {
         }
       } catch (error) {
         console.error('Native download error:', error);
-        alert('无法保存图片，请确保应用已获得存储权限。');
+        showToast('无法保存图片，请检查权限', "error");
       }
     } else {
-      // 浏览器环境保持原有的下载逻辑
       const link = document.createElement('a');
       link.href = exportImage;
-      link.download = exportFilename;
+      link.download = fileName;
       link.click();
+      showToast("开始下载图片", "success");
     }
   };
 
@@ -434,6 +437,27 @@ const App: React.FC = () => {
         </div>
         {showExportModal && <ExportModal imageUrl={exportImage} isExporting={isExporting} onClose={() => setShowExportModal(false)} onDownload={downloadImage} />}
         <ContentEditorModal isOpen={showContentModal} onClose={() => { setShowContentModal(false); if (isCreatingNew) { setIsCreatingNew(false); if (presets.length > 0) handleLoadPreset(presets[0]); } }} state={effectivePreviewState} onChange={handleStateChange} onConfirm={handleModalConfirm} />
+        
+        {toast && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none p-4">
+            <div className={`pointer-events-auto px-6 py-5 rounded-2xl shadow-2xl flex flex-col items-center gap-3 border min-w-[280px] max-w-[90vw] animate-in fade-in zoom-in-95 duration-300 ${
+              toast.type === 'success' ? 'bg-white/95 border-emerald-100' : 'bg-white/95 border-rose-100'
+            } backdrop-blur-xl`}>
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-1 shadow-inner ${
+                toast.type === 'success' ? 'bg-emerald-50 text-emerald-500' : 'bg-rose-50 text-rose-500'
+              }`}>
+                {toast.type === 'success' ? <CheckCircleIcon className="w-8 h-8" /> : <XCircleIcon className="w-8 h-8" />}
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <p className="text-sm font-bold text-gray-800 text-center font-serif-sc tracking-wide">{toast.message}</p>
+                <p className="text-[10px] text-gray-400 font-serif-sc opacity-80">衔书又止 · 系统提示</p>
+              </div>
+              <div className="mt-2 w-full h-1 bg-gray-50 rounded-full overflow-hidden">
+                <div className={`h-full ${toast.type === 'success' ? 'bg-emerald-400' : 'bg-rose-400'} animate-toast-progress`}></div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

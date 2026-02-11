@@ -23,6 +23,15 @@
               'serif-sc': ['"Noto Serif SC"', 'serif'],
               'serif': ['"Noto Serif SC"', 'serif'],
               'sans': ['"Noto Serif SC"', 'serif'],
+            },
+            keyframes: {
+              progress: {
+                '0%': { width: '100%' },
+                '100%': { width: '0%' },
+              }
+            },
+            animation: {
+              progress: 'progress 3s linear forwards',
             }
           }
         }
@@ -67,6 +76,15 @@
         width: 100%;
       }
       
+      @keyframes toast-progress {
+        from { width: 100%; }
+        to { width: 0%; }
+      }
+
+      .animate-toast-progress {
+        animation: toast-progress 3s linear forwards;
+      }
+
       ::-webkit-scrollbar {
         display: none;
       }
