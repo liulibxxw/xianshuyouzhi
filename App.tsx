@@ -24,6 +24,23 @@ import { toPng } from 'html-to-image';
 
 const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@400;700;900&family=ZCOOL+QingKe+HuangYou&display=swap";
 
+// 辅助函数：将 Base64 转换为 Blob
+function base64ToBlob(base64Data: string, contentType: string = 'image/png'): Blob {
+    const sliceSize = 512;
+    const byteCharacters = atob(base64Data.split(',')[1]);
+    const byteArrays = [];
+    for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+        const slice = byteCharacters.slice(offset, offset + sliceSize);
+        const byteNumbers = new Array(slice.length);
+        for (let i = 0; i < slice.length; i++) {
+            byteNumbers[i] = slice.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        byteArrays.push(byteArray);
+    }
+    return new Blob(byteArrays, { type: contentType });
+}
+
 async function getEmbedFontCSS() {
     try {
         const res = await fetch(GOOGLE_FONTS_URL);
@@ -388,30 +405,32 @@ const App: React.FC = () => {
           if (!exportImage) return;
           const fileName = exportFilename || 'cover.png';
           
-          // 移动端/APK 优化：尝试使用 Web Share API，这在 WebView 中比 a 标签下载更可靠
-          if (navigator.share && navigator.canShare) {
+          // 获取原始 Blob
+          const blob = base64ToBlob(exportImage);
+          const file = new File([blob], fileName, { type: 'image/png' });
+
+          // 移动端/APK 环境核心优化：使用 Web Share API
+          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
             try {
-              const res = await fetch(exportImage);
-              const blob = await res.blob();
-              const file = new File([blob], fileName, { type: 'image/png' });
-              
-              if (navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                  files: [file],
-                  title: '保存生成的图片',
-                });
-                return; // 分享成功则退出，不再执行传统下载
-              }
+              await navigator.share({
+                files: [file],
+                title: '保存生成的图片',
+              });
+              return; // 成功分享后直接返回
             } catch (e) {
-              console.error('Share failed, falling back to link download:', e);
+              console.error('Share failed, attempting fallback download:', e);
             }
           }
 
-          // 浏览器环境或分享失败后的回退：传统的 a 标签模拟点击下载
+          // 降级方案：使用 Blob URL 代替 DataURL 模拟点击（对移动端 WebView 更友好）
+          const blobUrl = URL.createObjectURL(blob);
           const link = document.createElement('a');
-          link.href = exportImage;
+          link.href = blobUrl;
           link.download = fileName;
+          document.body.appendChild(link);
           link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
         }} />}
         <ContentEditorModal isOpen={showContentModal} onClose={() => { setShowContentModal(false); if (isCreatingNew) { setIsCreatingNew(false); if (presets.length > 0) handleLoadPreset(presets[0]); } }} state={effectivePreviewState} onChange={handleStateChange} onConfirm={handleModalConfirm} />
       </div>
