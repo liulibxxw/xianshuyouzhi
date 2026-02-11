@@ -80,6 +80,7 @@ const App: React.FC = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportImage, setExportImage] = useState<string | null>(null);
+  const [exportFilename, setExportFilename] = useState<string>('cover.png');
   const [presets, setPresets] = useState<ContentPreset[]>(() => {
     try {
       const saved = localStorage.getItem('coverPresets_v3');
@@ -155,13 +156,11 @@ const App: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [state.mode, activeTab, state.layoutStyle]);
 
-  // 核心逻辑中心：强制物理隔离
   const handleStateChange = useCallback((patch: Partial<CoverState>) => {
     setState(prev => {
         const redirectedPatch = { ...patch };
         const currentLayout = redirectedPatch.layoutStyle || prev.layoutStyle;
 
-        // 1. 内容路由重定向
         if (currentLayout === 'duality' && (patch.layoutStyle === undefined || patch.layoutStyle === 'duality')) {
             if (patch.bodyText !== undefined) {
                 redirectedPatch.dualityBodyText = patch.bodyText;
@@ -173,16 +172,7 @@ const App: React.FC = () => {
             }
         }
 
-        const next = { ...prev, ...redirectedPatch };
-
-        // 2. 风格切换时的物理清理逻辑：防止常规正文池被 dualityBodyText 污染
-        if (patch.layoutStyle !== undefined && patch.layoutStyle !== prev.layoutStyle) {
-            // 只要发生了风格切换，无论切入切出，常规池必须物理重置
-            // 只有处于非 duality 风格且主动加载内容时，bodyText 才会被允许存在
-            next.bodyText = "";
-            next.secondaryBodyText = "";
-        }
-        return next;
+        return { ...prev, ...redirectedPatch };
     });
   }, []);
 
@@ -210,11 +200,11 @@ const App: React.FC = () => {
         title: preset.title,
         subtitle: preset.subtitle,
         layoutStyle: isDualityPreset ? 'duality' : (prev.layoutStyle === 'duality' ? 'minimal' : prev.layoutStyle),
-        // 加载预设时，如果是二象性预设，强制清空常规池。如果是普通预设，填充常规池并保留 duality 池内容。
-        dualityBodyText: isDualityPreset ? (preset.bodyText || preset.dualityBodyText || "") : (preset.dualityBodyText || prev.dualityBodyText || ""),
-        dualitySecondaryBodyText: isDualityPreset ? (preset.secondaryBodyText || preset.dualitySecondaryBodyText || "") : (preset.dualitySecondaryBodyText || prev.dualitySecondaryBodyText || ""),
-        bodyText: !isDualityPreset ? (preset.bodyText || "") : "",
-        secondaryBodyText: !isDualityPreset ? (preset.secondaryBodyText || "") : "",
+        // 切换草稿时优先加载草稿保存的内容，若草稿内容为空则保留当前编辑器的内容（满足用户“不要清空”的需求）
+        bodyText: preset.bodyText || prev.bodyText,
+        secondaryBodyText: preset.secondaryBodyText || prev.secondaryBodyText,
+        dualityBodyText: preset.dualityBodyText || prev.dualityBodyText,
+        dualitySecondaryBodyText: preset.dualitySecondaryBodyText || prev.dualitySecondaryBodyText,
         category: preset.category,
         author: preset.author
     }));
@@ -330,9 +320,12 @@ const App: React.FC = () => {
     setActivePresetId(null); setIsCreatingNew(true); setShowContentModal(true);
   }
 
-  const handleExport = async () => {
+  const handleExport = async (filename?: string) => {
     if (!previewRef.current) return;
-    setIsExporting(true); setExportImage(null); setShowExportModal(true);
+    setIsExporting(true); 
+    setExportImage(null); 
+    if (filename) setExportFilename(filename);
+    setShowExportModal(true);
     try {
       await document.fonts.ready; await new Promise(r => setTimeout(r, 500)); 
       const fontCss = await getEmbedFontCSS();
@@ -344,7 +337,6 @@ const App: React.FC = () => {
     } catch (e) { console.error("Export failed:", e); alert("导出失败"); setShowExportModal(false); } finally { setIsExporting(false); }
   };
 
-  // 严格隔离的有效状态计算
   const effectivePreviewState = {
     ...state,
     bodyText: state.layoutStyle === 'duality' ? state.dualityBodyText : state.bodyText,
@@ -393,7 +385,7 @@ const App: React.FC = () => {
                 </div>
             </div>
         </div>
-        {showExportModal && <ExportModal imageUrl={exportImage} isExporting={isExporting} onClose={() => setShowExportModal(false)} onDownload={() => { if (exportImage) { const link = document.createElement('a'); link.href = exportImage; link.download = `cover-${Date.now()}.png`; link.click(); } }} />}
+        {showExportModal && <ExportModal imageUrl={exportImage} isExporting={isExporting} onClose={() => setShowExportModal(false)} onDownload={() => { if (exportImage) { const link = document.createElement('a'); link.href = exportImage; link.download = exportFilename; link.click(); } }} />}
         <ContentEditorModal isOpen={showContentModal} onClose={() => { setShowContentModal(false); if (isCreatingNew) { setIsCreatingNew(false); if (presets.length > 0) handleLoadPreset(presets[0]); } }} state={effectivePreviewState} onChange={handleStateChange} onConfirm={handleModalConfirm} />
       </div>
     </div>

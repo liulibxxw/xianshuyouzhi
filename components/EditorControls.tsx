@@ -24,30 +24,6 @@ import {
 } from '@heroicons/react/24/solid';
 import { SavePresetModal, MobilePresetPanel } from './PresetPanel';
 
-interface EditorControlsProps {
-  state: CoverState;
-  onChange: (newState: Partial<CoverState>) => void;
-  presets?: ContentPreset[];
-  onSavePreset?: (name: string) => void;
-  onDeletePreset?: (id: string) => void;
-  onRenamePreset?: (id: string, newName: string) => void;
-  onLoadPreset?: (preset: ContentPreset) => void;
-  onExport: (filename?: string) => void;
-  activeTab?: EditorTab;
-  onTabChange?: (tab: EditorTab) => void;
-  onClose?: () => void; 
-  mobileView?: EditorTab;
-  onEditContent?: () => void;
-  activePresetId?: string | null;
-  onCreateNew?: () => void;
-  isExporting?: boolean;
-  advancedPresets?: AdvancedPreset[];
-  onSaveAdvancedPreset?: (preset: AdvancedPreset) => void;
-  onDeleteAdvancedPreset?: (id: string) => void;
-  onApplyAdvancedPreset?: (preset: AdvancedPreset) => void;
-  onFormatText?: (rules: TransformationRule[]) => void;
-}
-
 export const MobileSearchPanel: React.FC<EditorControlsProps> = ({ state, onChange }) => {
   const [searchChar, setSearchChar] = useState('');
   const [isRegexMode, setIsRegexMode] = useState(false);
@@ -128,6 +104,10 @@ export const MobileSearchPanel: React.FC<EditorControlsProps> = ({ state, onChan
     onChange({ bodyText: tempDiv.innerHTML });
   };
 
+  const getSelectionText = () => {
+    return window.getSelection()?.toString() || '';
+  };
+
   const submitRowEdit = (index: number) => {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = state.bodyText || "";
@@ -190,9 +170,18 @@ export const MobileSearchPanel: React.FC<EditorControlsProps> = ({ state, onChan
                       {editingIndex === m.index && (
                           <div className="p-2 bg-white border border-purple-100 rounded-lg flex flex-col gap-2 animate-in fade-in zoom-in-95">
                               <div className="grid grid-cols-3 gap-1">
-                                  <textarea className="text-[10px] p-2 bg-gray-50 border rounded-lg h-12 outline-none focus:border-purple-300" value={rowEditData.left} onChange={e => setRowEditData({...rowEditData, left: e.target.value})} placeholder="左"/>
-                                  <textarea className="text-[10px] p-2 bg-gray-50 border rounded-lg h-12 outline-none focus:border-purple-300" value={rowEditData.center} onChange={e => setRowEditData({...rowEditData, center: e.target.value})} placeholder="中"/>
-                                  <textarea className="text-[10px] p-2 bg-gray-50 border rounded-lg h-12 outline-none focus:border-purple-300" value={rowEditData.right} onChange={e => setRowEditData({...rowEditData, right: e.target.value})} placeholder="右"/>
+                                  <div className="flex flex-col gap-1">
+                                    <textarea className="text-[10px] p-2 bg-gray-50 border rounded-lg h-12 outline-none focus:border-purple-300 w-full" value={rowEditData.left} onChange={e => setRowEditData({...rowEditData, left: e.target.value})} placeholder="左"/>
+                                    <button onClick={() => setRowEditData({...rowEditData, left: getSelectionText()})} className="py-1 bg-purple-50 text-purple-600 text-[8px] font-bold rounded border border-purple-100">填入左</button>
+                                  </div>
+                                  <div className="flex flex-col gap-1">
+                                    <textarea className="text-[10px] p-2 bg-gray-50 border rounded-lg h-12 outline-none focus:border-purple-300 w-full" value={rowEditData.center} onChange={e => setRowEditData({...rowEditData, center: e.target.value})} placeholder="中"/>
+                                    <button onClick={() => setRowEditData({...rowEditData, center: getSelectionText()})} className="py-1 bg-purple-50 text-purple-600 text-[8px] font-bold rounded border border-purple-100">填入中</button>
+                                  </div>
+                                  <div className="flex flex-col gap-1">
+                                    <textarea className="text-[10px] p-2 bg-gray-50 border rounded-lg h-12 outline-none focus:border-purple-300 w-full" value={rowEditData.right} onChange={e => setRowEditData({...rowEditData, right: e.target.value})} placeholder="右"/>
+                                    <button onClick={() => setRowEditData({...rowEditData, right: getSelectionText()})} className="py-1 bg-purple-50 text-purple-600 text-[8px] font-bold rounded border border-purple-100">填入右</button>
+                                  </div>
                               </div>
                               <button onClick={() => submitRowEdit(m.index)} className="py-2 bg-purple-600 text-white text-[10px] rounded-lg font-bold uppercase tracking-widest shadow-sm">确认修改</button>
                           </div>
@@ -223,6 +212,30 @@ export const MobileSearchPanel: React.FC<EditorControlsProps> = ({ state, onChan
     </div>
   );
 };
+
+interface EditorControlsProps {
+  state: CoverState;
+  onChange: (newState: Partial<CoverState>) => void;
+  presets?: ContentPreset[];
+  onSavePreset?: (name: string) => void;
+  onDeletePreset?: (id: string) => void;
+  onRenamePreset?: (id: string, newName: string) => void;
+  onLoadPreset?: (preset: ContentPreset) => void;
+  onExport: (filename?: string) => void;
+  activeTab?: EditorTab;
+  onTabChange?: (tab: EditorTab) => void;
+  onClose?: () => void; 
+  mobileView?: EditorTab;
+  onEditContent?: () => void;
+  activePresetId?: string | null;
+  onCreateNew?: () => void;
+  isExporting?: boolean;
+  advancedPresets?: AdvancedPreset[];
+  onSaveAdvancedPreset?: (preset: AdvancedPreset) => void;
+  onDeleteAdvancedPreset?: (id: string) => void;
+  onApplyAdvancedPreset?: (preset: AdvancedPreset) => void;
+  onFormatText?: (rules: TransformationRule[]) => void;
+}
 
 export const MobileDraftsStrip: React.FC<EditorControlsProps> = ({
   presets = [],
