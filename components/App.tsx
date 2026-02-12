@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { CoverState, ContentPreset, EditorTab, AdvancedPreset, TransformationRule } from './types';
+import { CoverState, ContentPreset, EditorTab, AdvancedPreset, TransformationRule } from '../types';
 import { 
   INITIAL_TITLE, 
   INITIAL_SUBTITLE, 
@@ -13,7 +13,7 @@ import {
   DEFAULT_PRESETS,
   PastelColor,
   INITIAL_CATEGORY
-} from './constants';
+} from '../constants';
 import CoverPreview from './components/CoverPreview';
 import EditorControls, { MobileDraftsStrip, MobileStylePanel, ContentEditorModal, MobileExportPanel, MobileSearchPanel } from './components/EditorControls';
 import { MobilePresetPanel } from './components/PresetPanel';
@@ -394,31 +394,15 @@ const App: React.FC = () => {
       const exportOptions: any = { cacheBust: true, pixelRatio: 4, backgroundColor: state.backgroundColor, fontEmbedCSS: fontCss };
       
       if (state.mode === 'cover') { 
-        exportOptions.width = 400; 
-        exportOptions.height = 440; 
-        exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; 
+          exportOptions.width = 400; 
+          exportOptions.height = 440; 
+          exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; 
+      } else { 
+          exportOptions.width = 400; 
+          // 修复：强制设置 height: auto，防止 WebView 计算出错误的容器高度导致 justify-between 拉伸布局
+          exportOptions.style = { width: '400px', height: 'auto', maxWidth: 'none', transform: 'none', margin: '0' }; 
       }
-      else { 
-        // 关键修复：长文模式下，显式计算 scrollHeight，并强制设置高度
-        // 防止 flex-grow 自动填充导致的大量空白
-        const element = previewRef.current;
-        const currentHeight = element.scrollHeight;
-        
-        exportOptions.width = 400; 
-        exportOptions.height = currentHeight;
-        exportOptions.canvasHeight = currentHeight;
-        
-        exportOptions.style = { 
-            width: '400px', 
-            height: 'auto', // 允许自然高度
-            minHeight: 'auto', // 覆盖 min-height
-            maxHeight: 'none', 
-            transform: 'none', 
-            margin: '0',
-            overflow: 'visible'
-        }; 
-      }
-      
+
       const dataUrl = await toPng(previewRef.current, exportOptions);
       setExportImage(dataUrl);
     } catch (e) { console.error("Export failed:", e); showToast("导出失败", "error"); setShowExportModal(false); } finally { setIsExporting(false); }
