@@ -16,27 +16,37 @@ const FONT_FAMILY = '"Noto Serif SC", serif';
 const normalizeText = (html: string): string => {
   if (!html) return '';
   
+  // 创建虚拟 DOM 容器解析 HTML
   const temp = document.createElement('div');
   temp.innerHTML = html;
 
   let text = '';
+  // 定义会产生换行的块级标签
   const blockTags = new Set([
     'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
     'li', 'ul', 'ol', 'tr', 'blockquote', 'article', 'section', 'header', 'footer'
   ]);
 
+  // 递归遍历节点
   const walk = (node: Node) => {
     if (node.nodeType === Node.TEXT_NODE) {
       const content = node.textContent || '';
+      // 1. 将源码中的换行/制表符视为空格（模拟浏览器渲染机制），防止代码格式化导致的意外换行
       text += content.replace(/[\n\t\r]+/g, ' '); 
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       const el = node as HTMLElement;
       const tagName = el.tagName.toLowerCase();
       
       if (tagName === 'br') {
+        // <br> 显式转换为换行
         text += '\n';
       } else {
+        // 递归处理子元素
         node.childNodes.forEach(walk);
+        
+        // 2. 智能换行逻辑：
+        // 仅当块级元素结束、且缓冲区末尾尚无换行符时，才追加换行。
+        // 这确保了相邻的 </div><div> 不会产生双重换行。
         if (blockTags.has(tagName)) {
            if (text.length > 0 && !text.endsWith('\n')) {
              text += '\n';
