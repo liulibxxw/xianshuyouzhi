@@ -1,26 +1,68 @@
 
-import { CoverState, LayoutStyle } from '../types';
+import { CoverState } from '../types';
 
 const SCALE = 4;
 const BASE_WIDTH = 400;
 const CANVAS_WIDTH = BASE_WIDTH * SCALE;
 const PADDING = 24 * SCALE;
 
-// Helper: Strip HTML and normalize text
+/**
+ * 核心修复：基于 DOM 遍历的文本标准化
+ * 彻底解决 Android 端因 innerText 或正则替换导致的"自动插入空行"问题
+ */
 const normalizeText = (html: string): string => {
   if (!html) return '';
+  
+  // 创建离屏 DOM 容器
   const temp = document.createElement('div');
-  // Pre-process common block tags to newlines for better text flow
-  let processed = html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/div>/gi, '\n')
-    .replace(/<\/p>/gi, '\n')
-    .replace(/<\/li>/gi, '\n');
-  temp.innerHTML = processed;
-  return temp.innerText.trim();
+  temp.innerHTML = html;
+
+  let text = '';
+  
+  // 定义块级元素，这些元素结束时应当换行
+  const blockTags = new Set([
+    'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
+    'li', 'ul', 'ol', 'tr', 'blockquote', 'article', 'section', 'header', 'footer'
+  ]);
+
+  // 深度优先遍历 DOM 树
+  const walk = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      // 获取文本内容，保留必要的空格（contentEditable通常不会在非空文本节点内包含大量格式化换行）
+      const content = node.textContent || '';
+      // 简单处理：将连续的换行/制表符转换为空格，模拟浏览器渲染行为，避免源码格式影响
+      text += content.replace(/[\n\t\r]+/g, ' '); 
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as HTMLElement;
+      const tagName = el.tagName.toLowerCase();
+      
+      if (tagName === 'br') {
+        text += '\n';
+      } else {
+        // 递归处理子节点
+        node.childNodes.forEach(walk);
+        
+        // 块级元素结束时，如果缓冲区末尾没有换行，则追加一个换行
+        // 这解决了 <div>A</div><div>B</div> 变成 "A\nB" 而不是 "A\n\nB"
+        if (blockTags.has(tagName)) {
+           if (text.length > 0 && !text.endsWith('\n')) {
+             text += '\n';
+           }
+        }
+      }
+    }
+  };
+
+  walk(temp);
+
+  // 最终清洗：
+  // 1. 替换连续3个以上换行符为2个（允许最大1个空行段落，防止无限空行）
+  // 2. 去除首尾空白
+  return text.replace(/\n{3,}/g, '\n\n').trim();
 };
 
 // Helper: Wrap text
+// 使用 Array.from 支持 Emoji 等宽字符
 const wrapText = (
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -31,8 +73,15 @@ const wrapText = (
   const lines: string[] = [];
 
   paragraphs.forEach(paragraph => {
+    // 如果段落为空字符串，说明是空行，直接保留（会渲染出高度）
+    if (paragraph === '') {
+        lines.push('');
+        return;
+    }
+
     let line = '';
-    const chars = paragraph.split('');
+    // 使用 Array.from 正确处理 Unicode 字符 (Emoji)
+    const chars = Array.from(paragraph);
     
     for (let i = 0; i < chars.length; i++) {
       const testLine = line + chars[i];
@@ -46,7 +95,6 @@ const wrapText = (
       }
     }
     lines.push(line);
-    // Add extra spacing for paragraphs if needed, or just keep as is
   });
 
   return {
@@ -81,6 +129,7 @@ export const generateNativeCover = async (state: CoverState): Promise<string> =>
   const author = state.author || '';
   const categories = state.category ? state.category.split(/[、, ]/).filter(Boolean) : [];
   
+  // 使用新的标准化函数
   const bodyText = normalizeText(bodyTextRaw);
   const bodyText2 = normalizeText(bodyText2Raw);
 
