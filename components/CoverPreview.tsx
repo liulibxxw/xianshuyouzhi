@@ -47,7 +47,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     width: '400px',
     minWidth: '400px',
     maxWidth: '400px',
-    fontSynthesis: 'style', // 修改为 style 以允许浏览器模拟斜体
+    fontSynthesis: 'style',
     boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
@@ -55,7 +55,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     flexShrink: 0,
   };
 
-  // 根据是否在导出状态，决定是否应用文本清洗（去除空行）
   const displayBodyText = useMemo(() => isExporting ? getCleanContent(bodyText) : bodyText, [bodyText, isExporting]);
   const displaySecondaryText = useMemo(() => isExporting ? getCleanContent(secondaryBodyText) : secondaryBodyText, [secondaryBodyText, isExporting]);
 
@@ -73,7 +72,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     }
   }, [displaySecondaryText, layoutStyle, mode]);
 
-  // 计算字数和阅读时间
   const readingStats = useMemo(() => {
       const plainText = bodyText.replace(/<[^>]+>/g, '').trim();
       const length = plainText.length;
@@ -115,7 +113,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     const length = title.length;
     let sizeClass = 'text-4xl';
     
-    // 强制不换行，且根据字数更精细地缩小字号
     if (layoutStyle === 'split') {
         if (length > 30) sizeClass = 'text-[10px]';
         else if (length > 25) sizeClass = 'text-[12px]';
@@ -145,7 +142,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   };
 
   const getSubtitleSizeClass = (baseClass: string, length: number) => {
-      // 更加激进的字号缩小策略，防止换行
       if (length > 60) return 'text-[7px]';
       if (length > 50) return 'text-[8px]';
       if (length > 40) return 'text-[9px]';
@@ -161,9 +157,12 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
 
   const renderContent = () => {
     if (layoutStyle === 'duality') {
+      // Duality 布局：导出时移除 min-h-[300px] 限制，使高度自适应内容
+      const sectionMinHeight = isLongText ? (isExporting ? '' : 'min-h-[300px]') : 'flex-1 h-1/2';
+      
       return (
         <div key="layout-duality" className={`relative z-10 w-full flex flex-col ${flexGrowClass} ${minHeightClass}`}>
-            <div className={`flex flex-col relative px-[10px] py-4 ${isLongText ? 'min-h-[300px]' : 'flex-1 h-1/2'} overflow-hidden ${minHeightClass}`}>
+            <div className={`flex flex-col relative px-[10px] py-4 ${sectionMinHeight} overflow-hidden ${minHeightClass}`}>
                 <div className="absolute -left-6 bottom-0 text-[9rem] font-bold opacity-[0.06] pointer-events-none leading-none z-0 font-serif-sc select-none" style={{ color: textColor }}>01</div>
                 <div className="shrink-0 flex justify-between items-start z-10 mb-2 min-h-[50px] gap-2">
                      <div className="flex flex-col items-start gap-1 mt-1 z-10">
@@ -193,7 +192,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                  <div className="absolute top-0 left-0 w-full h-[40px] -translate-y-1/2" style={{ background: `linear-gradient(to bottom right, transparent 49%, ${textColor} 49%, ${textColor} 51%, transparent 51%)` }}></div>
                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-2 border border-current shadow-sm" style={{ color: textColor }}><div className="w-2 h-2 rounded-full bg-current" style={{ color: accentColor }}></div></div>
             </div>
-            <div className={`flex flex-col relative px-[10px] py-4 ${isLongText ? 'min-h-[300px]' : 'flex-1 h-1/2'} ${minHeightClass}`}>
+            <div className={`flex flex-col relative px-[10px] py-4 ${sectionMinHeight} ${minHeightClass}`}>
                 <div className="absolute -right-6 -top-4 text-[9rem] font-bold opacity-[0.06] pointer-events-none leading-none z-0 font-serif-sc select-none" style={{ color: textColor }}>02</div>
                 <div className="absolute left-0 right-0 bottom-0 -z-10" style={{ top: '-20px', background: `linear-gradient(to bottom right, transparent 49.5%, ${accentColor} 49.5%) top center / 100% 40px no-repeat, linear-gradient(${accentColor}, ${accentColor}) top 40px center / 100% calc(100% - 40px) no-repeat` }} />
                 <div className={`relative ${flexGrowClass} cursor-text overflow-hidden pl-0 z-10 ${minHeightClass} mt-2`} onClick={(e) => handleContainerClick(e, secondaryEditableRef)}>
@@ -259,7 +258,12 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
               </div>
               <div className={`relative mt-0 ${flexGrowClass} flex flex-col ${minHeightClass}`}>
                 <div className="flex items-center mb-1 shrink-0"><div className="px-2 py-0.5 text-[9px] font-bold tracking-widest text-white flex items-center justify-center" style={{ backgroundColor: textColor }}>ARCHIVE</div><div className="h-px flex-1 bg-current opacity-30 mx-2" style={{ color: textColor }}></div><div className="text-[9px] font-mono opacity-40" style={{ color: textColor }}>REF.07</div></div>
-                <div className={`relative pl-6 pt-1 pb-1 ${flexGrowClass} cursor-text ${minHeightClass}`} onClick={handleContainerClick}><div className="absolute left-0 top-0 bottom-2 w-px bg-current opacity-20" style={{ color: textColor }}></div><div className="absolute left-0 top-0 w-1 h-8" style={{ backgroundColor: contentBarColor }}></div><div ref={editableRef} contentEditable={!isExporting} onInput={(e) => handleInput(e)} onCompositionStart={() => isComposing.current = true} onCompositionEnd={() => isComposing.current = false} suppressContentEditableWarning={true} className={`${getBodyClasses()} w-full p-0 m-0 block opacity-90 transform-none ${isLongText ? 'h-auto overflow-visible min-h-[100px]' : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`} style={{ color: textColor, fontFamily: FONT_FAMILY }} /></div>
+                <div className={`relative pl-6 pt-1 pb-1 ${flexGrowClass} cursor-text ${minHeightClass}`} onClick={handleContainerClick}>
+                  <div className="absolute left-0 top-0 bottom-2 w-px bg-current opacity-20" style={{ color: textColor }}></div>
+                  <div className="absolute left-0 top-0 w-1 h-8" style={{ backgroundColor: contentBarColor }}></div>
+                  {/* Minimal 布局：导出时移除 min-h-[100px] 限制 */}
+                  <div ref={editableRef} contentEditable={!isExporting} onInput={(e) => handleInput(e)} onCompositionStart={() => isComposing.current = true} onCompositionEnd={() => isComposing.current = false} suppressContentEditableWarning={true} className={`${getBodyClasses()} w-full p-0 m-0 block opacity-90 transform-none ${isLongText ? `h-auto overflow-visible ${isExporting ? '' : 'min-h-[100px]'}` : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`} style={{ color: textColor, fontFamily: FONT_FAMILY }} />
+                </div>
               </div>
           </div>
           <div className="shrink-0 flex flex-col mt-1"><div className="ml-6 flex gap-0.5 opacity-20 mb-1.5 shrink-0"><div className="h-1 w-4 bg-current" style={{ color: textColor }}></div><div className="h-1 w-2 bg-current" style={{ color: textColor }}></div><div className="h-1 w-8 bg-current" style={{ color: textColor }}></div><div className="h-1 w-1 bg-current" style={{ color: textColor }}></div></div><div className="flex justify-between items-center opacity-80 border-t pt-1.5 border-dashed shrink-0" style={{ borderColor: `${textColor}40` }}><div className="flex flex-col"><span className="text-[8px] font-mono opacity-50">AUTHORIZED PERSONNEL</span><span className="text-[12px] font-bold uppercase tracking-wider font-serif-sc">{author}</span></div><div className="text-[20px] opacity-20 font-mono tracking-tighter">{new Date().getFullYear()}</div></div></div>
@@ -267,8 +271,15 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     );
   };
 
+  // 容器高度逻辑：长文模式且导出时，移除 min-height 限制
+  const containerMinHeightClass = useMemo(() => {
+      if (!isLongText) return 'h-[500px]';
+      if (isExporting) return 'h-auto';
+      return 'h-auto min-h-[600px] md:min-h-[712px]';
+  }, [isLongText, isExporting]);
+
   return (
-    <div ref={ref} className={`relative shadow-2xl antialiased overflow-hidden w-[400px] shrink-0 ${isLongText ? 'h-auto min-h-[600px] md:min-h-[712px]' : 'h-[440px]'}`} style={renderingIsolation}>
+    <div ref={ref} className={`relative shadow-2xl antialiased overflow-hidden w-[400px] shrink-0 ${containerMinHeightClass}`} style={renderingIsolation}>
       <div className="absolute inset-0 z-0" style={{ background: `radial-gradient(circle at 10% 20%, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 80%)`, opacity: 0.6 }} />
       {layoutStyle !== 'duality' && ( <div className="absolute inset-0 pointer-events-none z-0" style={{ backgroundImage: `linear-gradient(${textColor} 1px, transparent 1px), linear-gradient(90deg, ${textColor} 1px, transparent 1px)`, backgroundSize: '40px 40px', opacity: 0.05 }} /> )}
       {renderContent()}
