@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { CoverState, ContentPreset, EditorTab, AdvancedPreset, TransformationRule } from './types';
 import { 
@@ -21,8 +22,6 @@ import ExportModal from './components/ExportModal';
 import RichTextToolbar from './components/RichTextToolbar';
 import { ArrowDownTrayIcon, PaintBrushIcon, BookmarkIcon, ArrowsRightLeftIcon, SwatchIcon, SparklesIcon, MagnifyingGlassIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import { toPng } from 'html-to-image';
-// @ts-ignore
-import domtoimage from 'dom-to-image-more';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
@@ -79,6 +78,7 @@ const App: React.FC = () => {
       title: INITIAL_TITLE, subtitle: INITIAL_SUBTITLE, bodyText: INITIAL_BODY_TEXT, secondaryBodyText: "", dualityBodyText: "", dualitySecondaryBodyText: "",
       category: INITIAL_CATEGORY, author: INITIAL_AUTHOR, backgroundColor: INITIAL_BG_COLOR, accentColor: INITIAL_ACCENT_COLOR, textColor: INITIAL_TEXT_COLOR,
       layoutStyle: 'minimal', mode: 'long-text', bodyTextSize: 'text-[13px]', bodyTextAlign: 'text-justify', isBodyBold: false, isBodyItalic: false,
+      titleFont: 'serif', bodyFont: 'serif',
     };
   });
 
@@ -384,6 +384,7 @@ const App: React.FC = () => {
     setActivePresetId(null); setIsCreatingNew(true); setShowContentModal(true);
   }
 
+  // Optimized export function that fixes the blank line issue on Android
   const handleExport = async (filename?: string) => {
     if (!previewRef.current) return;
     setIsExporting(true); 
@@ -391,55 +392,64 @@ const App: React.FC = () => {
     if (filename) setExportFilename(filename);
     setShowExportModal(true);
     
+    // Create a temporary clone container to render the image without viewport scaling interference
+    const cloneContainer = document.createElement('div');
+    cloneContainer.style.position = 'fixed';
+    cloneContainer.style.top = '-9999px';
+    cloneContainer.style.left = '-9999px';
+    cloneContainer.style.width = '400px';
+    cloneContainer.style.zIndex = '-9999';
+    // Force visibility to ensure content renders
+    cloneContainer.style.visibility = 'visible';
+    
     try {
-      await document.fonts.ready; 
-      await new Promise(r => setTimeout(r, 500));
+      await document.fonts.ready; await new Promise(r => setTimeout(r, 500)); 
       
-      let dataUrl = '';
+      const nodeToClone = previewRef.current;
+      const clonedNode = nodeToClone.cloneNode(true) as HTMLElement;
       
-      if (Capacitor.isNativePlatform()) {
-          // Mobile Export using dom-to-image-more to avoid blank lines
-          const element = previewRef.current;
-          // Use a moderate scale for mobile to avoid memory/texture limits
-          const scale = 2; 
-          
-          dataUrl = await domtoimage.toPng(element, {
-              width: element.clientWidth * scale,
-              height: element.clientHeight * scale,
-              style: {
-                  transform: `scale(${scale})`,
-                  transformOrigin: 'top left',
-                  width: `${element.clientWidth}px`,
-                  height: `${element.clientHeight}px`,
-                  background: state.backgroundColor
-              },
-              quality: 1
-          });
-          
-      } else {
-          // Web Export using html-to-image (better font support)
-          const fontCss = await getEmbedFontCSS();
-          const exportOptions: any = { cacheBust: true, pixelRatio: 4, backgroundColor: state.backgroundColor, fontEmbedCSS: fontCss };
-          
-          if (state.mode === 'cover') { 
-              exportOptions.width = 400; 
-              exportOptions.height = 440; 
-              exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; 
-          } else { 
-              exportOptions.width = 400; 
-              exportOptions.style = { width: '400px', maxWidth: 'none', transform: 'none', margin: '0' }; 
-          }
-          
-          dataUrl = await toPng(previewRef.current, exportOptions);
-      }
+      // Reset any transforms or margins that might interfere
+      clonedNode.style.transform = 'none';
+      clonedNode.style.margin = '0';
       
+      cloneContainer.appendChild(clonedNode);
+      document.body.appendChild(cloneContainer);
+      
+      const fontCss = await getEmbedFontCSS();
+      
+      const isLongText = state.mode === 'long-text';
+      // Calculate specific height to avoid overflow/blank space issues
+      const contentHeight = isLongText ? clonedNode.scrollHeight : 440;
+      
+      const exportOptions: any = { 
+        cacheBust: true, 
+        pixelRatio: 3, // Slightly reduced for mobile performance
+        backgroundColor: state.backgroundColor, 
+        fontEmbedCSS: fontCss,
+        width: 400,
+        height: contentHeight,
+        style: {
+           width: '400px',
+           height: `${contentHeight}px`,
+           transform: 'none',
+           margin: '0',
+           // Ensure full height is visible in the clone
+           maxHeight: 'none',
+           overflow: 'visible'
+        }
+      };
+
+      const dataUrl = await toPng(clonedNode, exportOptions);
       setExportImage(dataUrl);
     } catch (e) { 
-      console.error("Export failed:", e); 
-      showToast("导出失败，请重试", "error"); 
-      setShowExportModal(false); 
+        console.error("Export failed:", e); 
+        showToast("导出失败，请重试", "error"); 
+        setShowExportModal(false); 
     } finally { 
-      setIsExporting(false); 
+        if (document.body.contains(cloneContainer)) {
+            document.body.removeChild(cloneContainer);
+        }
+        setIsExporting(false); 
     }
   };
 
@@ -450,21 +460,37 @@ const App: React.FC = () => {
     if (Capacitor.isNativePlatform()) {
       try {
         const base64Data = exportImage.split(',')[1];
+        
         try {
-          await Filesystem.writeFile({
+          // Attempt to write to Documents first
+          const savedFile = await Filesystem.writeFile({
             path: fileName,
             data: base64Data,
             directory: Directory.Documents,
             recursive: true
           });
-          showToast(`已下载至系统“文档”：${fileName}`, "success");
+          
+          showToast(`已保存到文档目录`, "success");
+          
+          // Optionally attempt to share it immediately so user can save to gallery via share sheet
+          // if explicit MediaStore writing isn't available via current plugins
+           await Share.share({
+            title: '保存预览图',
+            url: savedFile.uri,
+          });
+
         } catch (fileError) {
+          // Fallback to cache + share if Documents fails
           const tempFile = await Filesystem.writeFile({
             path: `temp_${Date.now()}.png`,
             data: base64Data,
             directory: Directory.Cache
           });
-          await Share.share({ title: '保存预览图', url: tempFile.uri });
+          
+          await Share.share({
+            title: '保存预览图',
+            url: tempFile.uri,
+          });
         }
       } catch (error) {
         console.error('Native download error:', error);

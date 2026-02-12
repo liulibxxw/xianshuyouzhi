@@ -1,3 +1,5 @@
+
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { CoverState, ContentPreset, EditorTab } from '../types';
 import { 
@@ -122,7 +124,7 @@ const App: React.FC = () => {
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [showBgColorPalette, setShowBgColorPalette] = useState(false);
   const [previewScale, setPreviewScale] = useState(1);
-  const [viewportHeight, setViewportHeight] = useState<string>('100%');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const previewRef = useRef<HTMLDivElement>(null);
   const bgColorPaletteRef = useRef<HTMLDivElement>(null);
@@ -132,20 +134,19 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!window.visualViewport) return;
 
-    const handleResize = () => {
-        if (!window.visualViewport) return;
-        setViewportHeight(`${window.visualViewport.height}px`);
+    const handleViewportChange = () => {
+      const viewport = window.visualViewport;
+      if (!viewport) return;
+      const offset = window.innerHeight - viewport.height;
+      setKeyboardHeight(offset > 150 ? offset : 0);
     };
 
-    window.visualViewport.addEventListener('resize', handleResize);
-    window.visualViewport.addEventListener('scroll', handleResize);
+    window.visualViewport.addEventListener('resize', handleViewportChange);
+    window.visualViewport.addEventListener('scroll', handleViewportChange);
     
-    // Initial calculation
-    handleResize();
-
     return () => {
-      window.visualViewport?.removeEventListener('resize', handleResize);
-      window.visualViewport?.removeEventListener('scroll', handleResize);
+      window.visualViewport?.removeEventListener('resize', handleViewportChange);
+      window.visualViewport?.removeEventListener('scroll', handleViewportChange);
     };
   }, []);
 
@@ -204,14 +205,9 @@ const App: React.FC = () => {
   const handleSavePreset = (name: string) => {
     const newId = Date.now().toString();
     const newPreset: ContentPreset = {
-      id: newId,
-      name,
-      title: state.title,
-      subtitle: state.subtitle,
-      bodyText: state.bodyText,
-      secondaryBodyText: state.secondaryBodyText,
-      category: state.category,
-      author: state.author
+      id: newId, name, title: state.title, subtitle: state.subtitle,
+      bodyText: state.bodyText, secondaryBodyText: state.secondaryBodyText,
+      category: state.category, author: state.author
     };
     setPresets(prev => [newPreset, ...prev]);
     return newId;
@@ -257,6 +253,7 @@ const App: React.FC = () => {
       setActivePresetId(newId);
       setIsCreatingNew(false);
     } else if (activePresetId) {
+      // 核心修复：如果是编辑已有草稿，同步更新草稿列表中的分类及其他信息
       setPresets(prev => prev.map(p => 
         p.id === activePresetId 
           ? { 
@@ -363,160 +360,47 @@ const App: React.FC = () => {
   };
 
   return (
-    <div 
-        className="flex flex-col lg:flex-row fixed inset-0 w-full bg-gray-50 overflow-hidden text-gray-800"
-        style={{ height: viewportHeight }}
-    >
+    <div className="flex flex-col lg:flex-row fixed inset-0 w-full h-full supports-[height:100dvh]:h-[100dvh] bg-gray-50 overflow-hidden text-gray-800">
       <div className="hidden lg:block w-96 bg-white border-r border-gray-200 z-10 shadow-[4px_0_24px_rgba(0,0,0,0.02)] shrink-0 h-full overflow-hidden">
-        <EditorControls 
-          state={state} 
-          onChange={handleStateChange}
-          presets={presets}
-          onSavePreset={handleSavePreset}
-          onDeletePreset={handleDeletePreset}
-          onLoadPreset={handleLoadPreset}
-          onExport={handleExport}
-          activeTab={activeTab || 'style'} 
-          onTabChange={(t) => setActiveTab(t)}
-          isExporting={isExporting}
-        />
+        <EditorControls state={state} onChange={handleStateChange} presets={presets} onSavePreset={handleSavePreset} onDeletePreset={handleDeletePreset} onLoadPreset={handleLoadPreset} onExport={handleExport} activeTab={activeTab || 'style'} onTabChange={setActiveTab} isExporting={isExporting} />
       </div>
-
       <div className="flex-1 relative flex flex-col h-full overflow-hidden">
-        <div className="lg:hidden h-14 bg-white border-b border-gray-200 flex items-center justify-center px-4 shrink-0 z-20 flex-none">
-            <span className="font-bold text-gray-800">衔书又止</span>
-        </div>
-
+        <div className="lg:hidden h-14 bg-white border-b border-gray-200 flex items-center justify-center px-4 shrink-0 z-20 flex-none"><span className="font-bold text-gray-800">衔书又止</span></div>
         <div className="flex-1 relative overflow-hidden bg-gray-100/50 flex flex-col">
-            <div 
-                ref={previewContainerRef}
-                className="flex-1 overflow-y-auto overflow-x-hidden flex justify-center custom-scrollbar items-start"
-            >
-               <div className="transition-all duration-300 w-full lg:w-auto p-0 lg:p-8 min-h-full lg:h-auto flex justify-center items-center">
-                  <div style={{ transform: `scale(${previewScale})`, transformOrigin: 'center center' }}>
-                    <CoverPreview 
-                        ref={previewRef}
-                        state={state}
-                        onBodyTextChange={(val) => handleStateChange({ bodyText: val })}
-                        onSecondaryBodyTextChange={(val) => handleStateChange({ secondaryBodyText: val })}
-                        isExporting={isExporting}
-                    />
+            <div ref={previewContainerRef} className="flex-1 relative overflow-hidden">
+               <div className="absolute inset-0 overflow-y-auto overflow-x-hidden flex flex-col items-center custom-scrollbar">
+                  <div className={`flex-1 flex justify-center w-full min-h-full ${state.mode === 'cover' ? 'items-center p-4 lg:p-8' : 'items-start pt-0 pb-24 px-4 lg:pt-0'}`}>
+                    <div className="transition-transform duration-300 relative flex justify-center" style={{ transform: `scale(${previewScale})`, transformOrigin: state.mode === 'cover' ? 'center center' : 'top center', width: '400px' }}>
+                      <CoverPreview ref={previewRef} state={state} onBodyTextChange={(val) => handleStateChange({ bodyText: val })} onSecondaryBodyTextChange={(val) => handleStateChange({ secondaryBodyText: val })} isExporting={isExporting} />
+                    </div>
                   </div>
                </div>
             </div>
-
             {showBgColorPalette && (
-                <div 
-                    ref={bgColorPaletteRef}
-                    className="fixed z-50 bottom-32 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-md border border-gray-200 shadow-xl rounded-xl p-4 flex flex-wrap justify-center gap-3 animate-in slide-in-from-bottom-2 fade-in"
-                    style={{ width: 'max-content', maxWidth: '90vw' }}
-                >
-                    {PALETTE.map((color) => (
-                        <button
-                            key={color.value}
-                            onClick={() => {
-                                handleStateChange({ backgroundColor: color.value });
-                                setShowBgColorPalette(false);
-                            }}
-                            className={`w-10 h-10 rounded-full border shadow-sm hover:scale-110 transition-transform ${state.backgroundColor === color.value ? 'ring-2 ring-purple-500 ring-offset-2' : 'border-gray-200'}`}
-                            style={{ backgroundColor: color.value }}
-                            title={color.label}
-                        />
-                    ))}
+                <div ref={bgColorPaletteRef} className="fixed z-50 bottom-32 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-md border border-gray-200 shadow-xl rounded-xl p-4 flex flex-wrap justify-center gap-3 animate-in slide-in-from-bottom-2 fade-in" style={{ width: 'max-content', maxWidth: '90vw' }}>
+                    {PALETTE.map((color) => (<button key={color.value} onClick={() => { handleStateChange({ backgroundColor: color.value }); setShowBgColorPalette(false); }} className={`w-10 h-10 rounded-full border shadow-sm hover:scale-110 transition-transform ${state.backgroundColor === color.value ? 'ring-2 ring-purple-500 ring-offset-2' : 'border-gray-200'}`} style={{ backgroundColor: color.value }} />))}
                 </div>
             )}
-
-            <div className="lg:hidden flex-none z-40 flex flex-col shadow-[0_-4px_20px_rgba(0,0,0,0.08)] bg-white">
-                <div className="relative w-full bg-gray-50/50">
-                    {activeTab === 'drafts' && <MobileDraftsStrip 
-                        presets={presets} 
-                        onLoadPreset={handleLoadPreset} 
-                        onDeletePreset={handleDeletePreset} 
-                        onSavePreset={handleSavePreset} 
-                        state={state} 
-                        onEditContent={() => setShowContentModal(true)} 
-                        activePresetId={activePresetId} 
-                        onCreateNew={handleCreateNew} 
-                        onChange={handleStateChange}
-                        onExport={handleExport}
-                    />}
-                    {activeTab === 'style' && <MobileStylePanel 
-                        state={state} 
-                        onChange={handleStateChange} 
-                        onExport={handleExport}
-                    />}
-                    {activeTab === 'export' && <MobileExportPanel
-                        state={state}
-                        onChange={handleStateChange}
-                        onExport={handleExport}
-                        isExporting={isExporting}
-                    />}
-                    
-                    {!activeTab && <RichTextToolbar
-                        visible={true}
-                        state={state}
-                        onChange={handleStateChange}
-                    />}
+            <div className="lg:hidden flex-none z-40 flex flex-col shadow-[0_-4px_20px_rgba(0,0,0,0.08)] bg-white" style={{ paddingBottom: `${keyboardHeight}px`, transition: 'padding-bottom 0.1s ease-out' }}>
+                <div className="relative w-full bg-gray-50/50 border-t border-gray-100/50">
+                    {activeTab === 'drafts' && <MobileDraftsStrip presets={presets} onLoadPreset={handleLoadPreset} onDeletePreset={handleDeletePreset} onSavePreset={handleSavePreset} state={state} onEditContent={() => setShowContentModal(true)} activePresetId={activePresetId} onCreateNew={handleCreateNew} onChange={handleStateChange} onExport={handleExport} />}
+                    {activeTab === 'style' && <MobileStylePanel state={state} onChange={handleStateChange} onExport={handleExport} />}
+                    {activeTab === 'export' && <MobileExportPanel state={state} onChange={handleStateChange} onExport={handleExport} isExporting={isExporting} />}
+                    {!activeTab && <RichTextToolbar visible={true} state={state} onChange={handleStateChange} />}
                 </div>
-
-                <div 
-                  className="h-16 bg-white border-t border-gray-100 flex items-center justify-around px-2 relative z-50"
-                >
-                      <button onClick={() => toggleMobileTab('drafts')} className={`flex flex-col items-center gap-1 transition-colors w-16 ${activeTab === 'drafts' ? 'text-purple-600' : 'text-gray-500'}`}>
-                        <BookmarkIcon className="w-6 h-6" />
-                        <span className="text-[10px] font-bold">草稿</span>
-                      </button>
-                      <button onClick={() => toggleMobileTab('style')} className={`flex flex-col items-center gap-1 transition-colors w-16 ${activeTab === 'style' ? 'text-purple-600' : 'text-gray-500'}`}>
-                        <PaintBrushIcon className="w-6 h-6" />
-                        <span className="text-[10px] font-bold">风格</span>
-                      </button>
-                      <button 
-                        ref={bgColorButtonRef}
-                        onClick={toggleBgPalette}
-                        className="w-12 h-12 rounded-full border-4 border-white shadow-lg -translate-y-4 bg-gradient-to-br from-rose-200 to-blue-200 flex items-center justify-center relative z-50"
-                        style={{ backgroundColor: state.backgroundColor }}
-                      >
-                        <SwatchIcon className="w-6 h-6 text-white/80" />
-                      </button>
-                      <button onClick={handleModeToggle} className="flex flex-col items-center gap-1 text-gray-500 transition-colors w-16">
-                        <ArrowsRightLeftIcon className="w-6 h-6" />
-                        <span className="text-[10px] font-bold">{state.mode === 'cover' ? '长图' : '封面'}</span>
-                      </button>
-                      <button onClick={() => toggleMobileTab('export')} className={`flex flex-col items-center gap-1 transition-colors w-16 ${activeTab === 'export' ? 'text-purple-600' : 'text-gray-500'}`}>
-                        <ArrowDownTrayIcon className="w-6 h-6" />
-                        <span className="text-[10px] font-bold">导出</span>
-                      </button>
+                <div className="h-16 bg-white border-t border-gray-100 flex items-center justify-around px-2 relative z-50 shrink-0">
+                      <button onClick={() => toggleMobileTab('drafts')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'drafts' ? 'text-purple-600' : 'text-gray-500'}`}><BookmarkIcon className="w-6 h-6" /><span className="text-[10px] font-bold">草稿</span></button>
+                      <button onClick={() => toggleMobileTab('style')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'style' ? 'text-purple-600' : 'text-gray-500'}`}><PaintBrushIcon className="w-6 h-6" /><span className="text-[10px] font-bold">风格</span></button>
+                      <button ref={bgColorButtonRef} onClick={toggleBgPalette} className="w-12 h-12 rounded-full border-4 border-white shadow-lg -translate-y-4 bg-gradient-to-br from-rose-200 to-blue-200 flex items-center justify-center relative z-50" style={{ backgroundColor: state.backgroundColor }}><SwatchIcon className="w-6 h-6 text-white/80" /></button>
+                      <button onClick={handleModeToggle} className="flex flex-col items-center gap-1 text-gray-500 transition-colors w-14"><ArrowsRightLeftIcon className="w-6 h-6" /><span className="text-[10px] font-bold">{state.mode === 'cover' ? '长图' : '封面'}</span></button>
+                      <button onClick={() => toggleMobileTab('export')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'export' ? 'text-purple-600' : 'text-gray-500'}`}><ArrowDownTrayIcon className="w-6 h-6" /><span className="text-[10px] font-bold">导出</span></button>
                 </div>
             </div>
         </div>
-
-        {showExportModal && (
-          <ExportModal 
-            imageUrl={exportImage} 
-            isExporting={isExporting}
-            onClose={() => setShowExportModal(false)}
-            onDownload={downloadImage}
-          />
-        )}
-
-        <ContentEditorModal 
-          isOpen={showContentModal}
-          onClose={() => {
-            setShowContentModal(false);
-            if (isCreatingNew) {
-                setIsCreatingNew(false);
-                if (presets.length > 0) {
-                    handleLoadPreset(presets[0]);
-                }
-            }
-          }}
-          state={state}
-          onChange={handleStateChange}
-          onConfirm={handleModalConfirm}
-        />
+        {showExportModal && <ExportModal imageUrl={exportImage} isExporting={isExporting} onClose={() => setShowExportModal(false)} onDownload={downloadImage} />}
+        <ContentEditorModal isOpen={showContentModal} onClose={() => { setShowContentModal(false); if (isCreatingNew) { setIsCreatingNew(false); if (presets.length > 0) handleLoadPreset(presets[0]); } }} state={state} onChange={handleStateChange} onConfirm={handleModalConfirm} />
       </div>
     </div>
   );
 };
-
 export default App;
