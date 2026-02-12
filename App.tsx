@@ -62,12 +62,13 @@ const App: React.FC = () => {
       const saved = localStorage.getItem('coverState_v3');
       if (saved) {
         const parsed = JSON.parse(saved);
+        const savedLayout = parsed.layoutStyle === 'centered' ? 'minimal' : (parsed.layoutStyle || 'minimal');
         return {
            ...parsed,
            backgroundColor: parsed.backgroundColor || INITIAL_BG_COLOR,
            accentColor: parsed.accentColor || INITIAL_ACCENT_COLOR,
            textColor: parsed.textColor || INITIAL_TEXT_COLOR,
-           layoutStyle: parsed.layoutStyle || 'minimal',
+           layoutStyle: savedLayout,
            mode: parsed.mode || 'long-text'
         };
       }
@@ -75,7 +76,7 @@ const App: React.FC = () => {
     return {
       title: INITIAL_TITLE, subtitle: INITIAL_SUBTITLE, bodyText: INITIAL_BODY_TEXT, secondaryBodyText: "", dualityBodyText: "", dualitySecondaryBodyText: "",
       category: INITIAL_CATEGORY, author: INITIAL_AUTHOR, backgroundColor: INITIAL_BG_COLOR, accentColor: INITIAL_ACCENT_COLOR, textColor: INITIAL_TEXT_COLOR,
-      titleFont: 'serif', bodyFont: 'serif', layoutStyle: 'minimal', mode: 'long-text', bodyTextSize: 'text-[13px]', bodyTextAlign: 'text-justify', isBodyBold: false, isBodyItalic: false,
+      layoutStyle: 'minimal', mode: 'long-text', bodyTextSize: 'text-[13px]', bodyTextAlign: 'text-justify', isBodyBold: false, isBodyItalic: false,
     };
   });
 
@@ -280,6 +281,7 @@ const App: React.FC = () => {
                          col.innerHTML = content || '&nbsp;';
                          if (structRule.formatting.fontSize) col.style.fontSize = `${structRule.formatting.fontSize}px`;
                          if (structRule.formatting.isBold) col.style.fontWeight = 'bold';
+                         if (structRule.formatting.isItalic) col.style.fontStyle = 'italic';
                          if (structRule.formatting.color) col.style.color = structRule.formatting.color;
                          return col;
                     };
@@ -306,6 +308,7 @@ const App: React.FC = () => {
                              if (rule.formatting.textAlign) element.style.textAlign = rule.formatting.textAlign;
                              if (rule.formatting.fontSize) element.style.fontSize = `${rule.formatting.fontSize}px`;
                              if (rule.formatting.isBold) element.style.fontWeight = 'bold';
+                             if (rule.formatting.isItalic) element.style.fontStyle = 'italic';
                              if (rule.formatting.color) element.style.color = rule.formatting.color;
                              hasChanges = true;
                          } 
@@ -319,7 +322,8 @@ const App: React.FC = () => {
                              const styleStr = [
                                 fmt.color ? `color:${fmt.color}` : '',
                                 fmt.fontSize ? `font-size:${fmt.fontSize}px` : '',
-                                fmt.isBold ? `font-weight:bold` : ''
+                                fmt.isBold ? `font-weight:bold` : '',
+                                fmt.isItalic ? `font-style:italic` : ''
                              ].filter(Boolean).join(';');
                              
                              if (styleStr) {

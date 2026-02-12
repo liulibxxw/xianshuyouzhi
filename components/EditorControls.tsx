@@ -1,6 +1,5 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
-import { CoverState, FontStyle, LayoutStyle, ContentPreset, EditorTab, AdvancedPreset, TransformationRule } from '../types';
+import { CoverState, LayoutStyle, ContentPreset, EditorTab, AdvancedPreset, TransformationRule } from '../types';
 import { PALETTE, TEXT_PALETTE } from '../constants';
 import { 
     BookmarkIcon, 
@@ -361,12 +360,11 @@ export const MobileStylePanel: React.FC<EditorControlsProps> = ({ state, onChang
        <div className="flex-1 overflow-y-auto px-4 py-3 custom-scrollbar">
           <div>
              <h4 className="text-[10px] font-bold text-gray-400 uppercase mb-2">布局模板</h4>
-             <div className="grid grid-cols-4 gap-3">
+             <div className="grid grid-cols-3 gap-3">
               {[
                 { id: 'duality', label: '假作真时' },
                 { id: 'minimal', label: '机能档案' },
                 { id: 'split', label: '电影叙事' },
-                { id: 'centered', label: '杂志海报' }
               ].map((layout) => (
                 <button
                   key={layout.id}
@@ -806,12 +804,11 @@ const EditorControls: React.FC<EditorControlsProps> = ({
         <div className="space-y-4">
           <label className="text-sm font-bold text-gray-800">风格与布局</label>
           
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {[
               { id: 'duality', label: '假作真时' },
               { id: 'minimal', label: '机能档案' },
               { id: 'split', label: '电影叙事' },
-              { id: 'centered', label: '杂志海报' }
             ].map((layout) => (
               <button
                 key={layout.id}
@@ -830,28 +827,25 @@ const EditorControls: React.FC<EditorControlsProps> = ({
                  <input 
                     value={characterName}
                     onChange={(e) => setCharacterName(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:border-purple-300 transition-all"
-                    placeholder="角色名 (可选)"
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-100 focus:border-purple-300 outline-none text-sm transition-all"
+                    placeholder="可选..."
                  />
-                 <div className="text-[10px] text-gray-400 font-mono px-1 truncate">
-                    {filename}.png
-                 </div>
-            </div>
-
+             </div>
+             
              <button 
                onClick={() => onExport && onExport(`${filename}.png`)}
                disabled={isExporting}
-               className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-sm shadow-md hover:bg-black transition-all flex justify-center items-center gap-2 disabled:opacity-70 active:scale-95"
+               className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-sm shadow-md active:scale-95 transition-all disabled:opacity-70 flex justify-center items-center gap-2 hover:bg-black"
              >
                {isExporting ? (
                  <>
                    <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                   生成中...
+                   正在生成高清图片...
                  </>
                ) : (
                  <>
                    <ArrowDownTrayIcon className="w-4 h-4" />
-                   导出图片
+                   导出当前卡片
                  </>
                )}
              </button>
@@ -860,48 +854,33 @@ const EditorControls: React.FC<EditorControlsProps> = ({
     );
   };
 
-  const TabButton = ({ isActive, onClick, icon: Icon, label }: { isActive: boolean, onClick: () => void, icon: React.FC<any>, label: string }) => (
-    <button
-      onClick={onClick}
-      className={`flex-1 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 py-3 text-[10px] md:text-xs font-bold transition-all ${
-        isActive
-          ? 'text-indigo-600 border-b-2 border-indigo-600'
-          : 'text-gray-400 hover:text-gray-600 border-b-2 border-transparent'
-      }`}
-    >
-      <Icon className="w-4 h-4 md:w-5 md:h-5" />
-      <span>{label}</span>
-    </button>
-  );
-
   return (
-    <div className="flex flex-col h-full font-sans-sc bg-white relative">
-      <div className="hidden md:block p-6 pb-2">
-        <div className="flex justify-between items-center mb-1">
-          <div>
-             <h2 className="text-2xl font-bold text-gray-900">衔书又止</h2>
-             <p className="text-gray-400 text-xs mt-1">书不尽言，言不尽意</p>
-          </div>
-        </div>
+    <div className="flex flex-col h-full bg-white">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+         <span className="font-bold text-lg text-gray-900 tracking-tight">衔书又止</span>
+         <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+             <button onClick={() => onTabChange && onTabChange('style')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'style' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>风格</button>
+             <button onClick={() => onTabChange && onTabChange('content')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'content' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>内容</button>
+             <button onClick={() => onTabChange && onTabChange('drafts')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'drafts' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>草稿</button>
+             <button onClick={() => onTabChange && onTabChange('presets')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'presets' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>预设</button>
+         </div>
       </div>
 
-      <div className="px-2 md:px-6 border-b border-gray-100 shrink-0">
-          <div className="flex">
-            <TabButton isActive={activeTab === 'drafts'} onClick={() => onTabChange?.('drafts')} icon={BookmarkIcon} label="我的草稿" />
-            <TabButton isActive={activeTab === 'presets'} onClick={() => onTabChange?.('presets')} icon={SparklesIcon} label="高级预设" />
-            <TabButton isActive={activeTab === 'content'} onClick={() => onTabChange?.('content')} icon={PencilSquareIcon} label="内容编辑" />
-            <TabButton isActive={activeTab === 'style'} onClick={() => onTabChange?.('style')} icon={PaintBrushIcon} label="风格布局" />
-          </div>
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+         {activeTab === 'style' && renderStyleTab()}
+         {activeTab === 'content' && renderContentTab()}
+         {activeTab === 'drafts' && renderDraftsTab()}
+         {activeTab === 'presets' && renderPresetsTab()}
       </div>
       
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-28 relative custom-scrollbar">
-        <div className="space-y-6">
-          {activeTab === 'style' && renderStyleTab()}
-          {activeTab === 'drafts' && renderDraftsTab()}
-          {activeTab === 'content' && renderContentTab()}
-          {activeTab === 'presets' && renderPresetsTab()}
-        </div>
-      </div>
+      {showSaveAdvancedModal && onSaveAdvancedPreset && (
+            <SavePresetModal 
+                isOpen={showSaveAdvancedModal}
+                onClose={() => setShowSaveAdvancedModal(false)}
+                onConfirm={onSaveAdvancedPreset}
+                currentState={state}
+            />
+        )}
     </div>
   );
 };

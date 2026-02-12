@@ -15,7 +15,8 @@ import {
     ArrowsRightLeftIcon,
     Bars3BottomRightIcon,
     PencilSquareIcon,
-    MinusIcon
+    MinusIcon,
+    ItalicIcon
 } from '@heroicons/react/24/solid';
 
 interface PresetPanelProps {
@@ -174,6 +175,14 @@ const RuleConfigItem: React.FC<{
                         <BoldIcon className="w-3 h-3" />
                     </button>
 
+                    <button 
+                        onClick={() => updateFormatting({ isItalic: !rule.formatting.isItalic })}
+                        className={`p-1 rounded ${rule.formatting.isItalic ? 'bg-purple-100 text-purple-600 border border-purple-200' : 'bg-white border border-gray-200 text-gray-400'}`}
+                        title="斜体"
+                    >
+                        <ItalicIcon className="w-3 h-3" />
+                    </button>
+
                     {!isStructureMode && (
                         <button 
                             onClick={() => {
@@ -249,6 +258,7 @@ export const SavePresetModal: React.FC<{
                 const formatting: FormattingStyles = {};
                 if (firstCol.style.fontSize) formatting.fontSize = parseInt(firstCol.style.fontSize);
                 if (firstCol.style.fontWeight === 'bold') formatting.isBold = true;
+                if (firstCol.style.fontStyle === 'italic') formatting.isItalic = true;
                 if (firstCol.style.color) formatting.color = firstCol.style.color;
                 
                 const key = `struct_${idx}`;
@@ -278,6 +288,7 @@ export const SavePresetModal: React.FC<{
             if (htmlEl.style.color) formatting.color = htmlEl.style.color;
             if (htmlEl.style.fontSize) formatting.fontSize = parseInt(htmlEl.style.fontSize);
             if (htmlEl.style.fontWeight === 'bold') formatting.isBold = true;
+            if (htmlEl.style.fontStyle === 'italic') formatting.isItalic = true;
             if (htmlEl.style.textAlign) formatting.textAlign = htmlEl.style.textAlign as any;
 
             const key = `style_${text.trim()}`;
@@ -338,11 +349,11 @@ export const SavePresetModal: React.FC<{
                         <div className="flex gap-4">
                             <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                                 <input type="checkbox" checked={includeStyle} onChange={e => setIncludeStyle(e.target.checked)} className="rounded text-purple-600" />
-                                <span className="font-medium">包含风格</span>
+                                <span className="font-medium">包含基础风格</span>
                             </label>
                             <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                                 <input type="checkbox" checked={includeContent} onChange={e => setIncludeContent(e.target.checked)} className="rounded text-purple-600" />
-                                <span className="font-medium">包含草稿</span>
+                                <span className="font-medium">包含文字内容</span>
                             </label>
                         </div>
                         <div className="border-t border-gray-100 pt-4">

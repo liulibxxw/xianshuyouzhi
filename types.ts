@@ -13,9 +13,7 @@ export interface CoverState {
   backgroundColor: string;
   accentColor: string;
   textColor: string;
-  titleFont: 'modern' | 'serif' | 'jianghu' | 'bold';
-  bodyFont: 'modern' | 'serif' | 'jianghu' | 'bold';
-  layoutStyle: 'centered' | 'split' | 'minimal' | 'duality';
+  layoutStyle: 'split' | 'minimal' | 'duality';
   mode: 'cover' | 'long-text';
   bodyTextSize: string;
   bodyTextAlign: string;
@@ -65,6 +63,5 @@ export interface AdvancedPreset {
   rules: TransformationRule[];
 }
 
-export type FontStyle = CoverState['titleFont'];
 export type LayoutStyle = CoverState['layoutStyle'];
 export type EditorTab = 'style' | 'drafts' | 'content' | 'export' | 'presets' | 'search';
