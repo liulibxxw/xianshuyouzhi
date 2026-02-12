@@ -46,7 +46,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     width: '400px',
     minWidth: '400px',
     maxWidth: '400px',
-    fontSynthesis: 'style',
+    fontSynthesis: 'style', // 修改为 style 以允许浏览器模拟斜体
     boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
@@ -68,6 +68,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     }
   }, [secondaryBodyText, layoutStyle, mode]);
 
+  // 计算字数和阅读时间
   const readingStats = useMemo(() => {
       const plainText = bodyText.replace(/<[^>]+>/g, '').trim();
       const length = plainText.length;
@@ -109,6 +110,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     const length = title.length;
     let sizeClass = 'text-4xl';
     
+    // 强制不换行，且根据字数更精细地缩小字号
     if (layoutStyle === 'split') {
         if (length > 30) sizeClass = 'text-[10px]';
         else if (length > 25) sizeClass = 'text-[12px]';
@@ -126,6 +128,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
         else if (length > 10) sizeClass = 'text-2xl';
         else sizeClass = 'text-4xl';
     } else {
+        // Default (used to include centered, now fallback)
         if (length > 35) sizeClass = 'text-[9px]';
         else if (length > 30) sizeClass = 'text-[10px]';
         else if (length > 25) sizeClass = 'text-[11px]';
@@ -138,6 +141,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   };
 
   const getSubtitleSizeClass = (baseClass: string, length: number) => {
+      // 更加激进的字号缩小策略，防止换行
       if (length > 60) return 'text-[7px]';
       if (length > 50) return 'text-[8px]';
       if (length > 40) return 'text-[9px]';
@@ -224,13 +228,14 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
       );
     }
 
-    // Default Fallback (Minimal)
+    // Default Fallback (Minimal) to ensure something renders if style is unknown
     return (
         <div key="layout-minimal" className={`relative z-10 p-6 w-full flex flex-col justify-between ${isLongText ? 'flex-auto' : 'h-full overflow-hidden'}`}>
           <div className={`${flexGrowClass} flex flex-col ${minHeightClass}`}>
               <div className="flex justify-between items-end border-b pb-2 mb-3 opacity-80 shrink-0" style={{ borderColor: `${textColor}40` }}>
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-sm animate-pulse" style={{ backgroundColor: accentColor }}></div><span className="text-[9px] font-mono tracking-widest font-bold" style={{ color: textColor }}>SYSTEM_NORMAL</span></div>
+                    {/* Updated text label removing comma */}
                     <div className="text-[8px] opacity-60 font-mono pl-3.5 tracking-tight" style={{ color: textColor }}>全文约{readingStats.length}字 预计阅读用时{readingStats.minutes}分</div>
                 </div>
                 <div className="flex items-center gap-2 mb-1"><div className="h-1 w-12 bg-current opacity-20" style={{ color: textColor }}><div className="h-full w-2/3 bg-current" style={{ color: textColor }}></div></div><span className="text-[9px] font-mono opacity-60 tracking-widest" style={{ color: textColor }}>REC-{Math.floor(Math.random() * 9999)}</span></div>
@@ -260,7 +265,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   };
 
   return (
-    <div ref={ref} className={`relative shadow-2xl antialiased w-[400px] shrink-0 ${isLongText ? 'h-auto min-h-[600px] md:min-h-[712px]' : 'h-[440px]'} ${isExporting ? 'overflow-visible' : 'overflow-hidden'}`} style={renderingIsolation}>
+    <div ref={ref} className={`relative shadow-2xl antialiased overflow-hidden w-[400px] shrink-0 ${isLongText ? 'h-auto min-h-[600px] md:min-h-[712px]' : 'h-[440px]'}`} style={renderingIsolation}>
       <div className="absolute inset-0 z-0" style={{ background: `radial-gradient(circle at 10% 20%, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 80%)`, opacity: 0.6 }} />
       {layoutStyle !== 'duality' && ( <div className="absolute inset-0 pointer-events-none z-0" style={{ backgroundImage: `linear-gradient(${textColor} 1px, transparent 1px), linear-gradient(90deg, ${textColor} 1px, transparent 1px)`, backgroundSize: '40px 40px', opacity: 0.05 }} /> )}
       {renderContent()}
