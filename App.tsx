@@ -24,7 +24,6 @@ import { toPng } from 'html-to-image';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
-import { generateNativeCover } from './components/nativeExport';
 
 const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@400;700;900&family=ZCOOL+QingKe+HuangYou&display=swap";
 
@@ -391,31 +390,24 @@ const App: React.FC = () => {
     setExportImage(null); 
     if (filename) setExportFilename(filename);
     setShowExportModal(true);
-    
-    // 核心修改：检测是否为 Native 环境
-    if (Capacitor.isNativePlatform()) {
-        try {
-            await document.fonts.ready;
-            // 使用新写的原生绘图逻辑
-            const dataUrl = await generateNativeCover(state);
-            setExportImage(dataUrl);
-            setIsExporting(false);
-            return;
-        } catch(e) {
-            console.error("Native export failed, falling back...", e);
-        }
-    }
 
-    // Web环境继续使用原逻辑 (html-to-image)
+    // 始终使用 html-to-image (toPng) 进行导出，包括 Native 环境
     try {
       await document.fonts.ready; await new Promise(r => setTimeout(r, 500)); 
       const fontCss = await getEmbedFontCSS();
       const exportOptions: any = { cacheBust: true, pixelRatio: 4, backgroundColor: state.backgroundColor, fontEmbedCSS: fontCss };
       if (state.mode === 'cover') { exportOptions.width = 400; exportOptions.height = 440; exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; }
       else { exportOptions.width = 400; exportOptions.style = { width: '400px', maxWidth: 'none', transform: 'none', margin: '0' }; }
+      
       const dataUrl = await toPng(previewRef.current, exportOptions);
       setExportImage(dataUrl);
-    } catch (e) { console.error("Export failed:", e); showToast("导出失败", "error"); setShowExportModal(false); } finally { setIsExporting(false); }
+    } catch (e) { 
+        console.error("Export failed:", e); 
+        showToast("导出失败，请重试", "error"); 
+        setShowExportModal(false); 
+    } finally { 
+        setIsExporting(false); 
+    }
   };
 
   const downloadImage = async () => {

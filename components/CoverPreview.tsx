@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState, forwardRef, useRef, useMemo } from 'react';
 import { CoverState } from '../types';
+import { getCleanContent } from './nativeExport';
 
 interface CoverPreviewProps {
   state: CoverState;
@@ -54,19 +55,23 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     flexShrink: 0,
   };
 
+  // 根据是否在导出状态，决定是否应用文本清洗（去除空行）
+  const displayBodyText = useMemo(() => isExporting ? getCleanContent(bodyText) : bodyText, [bodyText, isExporting]);
+  const displaySecondaryText = useMemo(() => isExporting ? getCleanContent(secondaryBodyText) : secondaryBodyText, [secondaryBodyText, isExporting]);
+
   useEffect(() => {
     const el = editableRef.current;
-    if (el && el.innerHTML !== bodyText && !isComposing.current) {
-      el.innerHTML = bodyText;
+    if (el && el.innerHTML !== displayBodyText && !isComposing.current) {
+      el.innerHTML = displayBodyText;
     }
-  }, [bodyText, layoutStyle, mode]);
+  }, [displayBodyText, layoutStyle, mode]);
 
   useEffect(() => {
     const el = secondaryEditableRef.current;
-    if (el && el.innerHTML !== secondaryBodyText && !isComposing.current) {
-      el.innerHTML = secondaryBodyText;
+    if (el && el.innerHTML !== displaySecondaryText && !isComposing.current) {
+      el.innerHTML = displaySecondaryText;
     }
-  }, [secondaryBodyText, layoutStyle, mode]);
+  }, [displaySecondaryText, layoutStyle, mode]);
 
   // 计算字数和阅读时间
   const readingStats = useMemo(() => {
@@ -128,7 +133,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
         else if (length > 10) sizeClass = 'text-2xl';
         else sizeClass = 'text-4xl';
     } else {
-        // Default (used to include centered, now fallback)
         if (length > 35) sizeClass = 'text-[9px]';
         else if (length > 30) sizeClass = 'text-[10px]';
         else if (length > 25) sizeClass = 'text-[11px]';
@@ -228,14 +232,13 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
       );
     }
 
-    // Default Fallback (Minimal) to ensure something renders if style is unknown
+    // Default Fallback (Minimal)
     return (
         <div key="layout-minimal" className={`relative z-10 p-6 w-full flex flex-col justify-between ${isLongText ? 'flex-auto' : 'h-full overflow-hidden'}`}>
           <div className={`${flexGrowClass} flex flex-col ${minHeightClass}`}>
               <div className="flex justify-between items-end border-b pb-2 mb-3 opacity-80 shrink-0" style={{ borderColor: `${textColor}40` }}>
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-sm animate-pulse" style={{ backgroundColor: accentColor }}></div><span className="text-[9px] font-mono tracking-widest font-bold" style={{ color: textColor }}>SYSTEM_NORMAL</span></div>
-                    {/* Updated text label removing comma */}
                     <div className="text-[8px] opacity-60 font-mono pl-3.5 tracking-tight" style={{ color: textColor }}>全文约{readingStats.length}字 预计阅读用时{readingStats.minutes}分</div>
                 </div>
                 <div className="flex items-center gap-2 mb-1"><div className="h-1 w-12 bg-current opacity-20" style={{ color: textColor }}><div className="h-full w-2/3 bg-current" style={{ color: textColor }}></div></div><span className="text-[9px] font-mono opacity-60 tracking-widest" style={{ color: textColor }}>REC-{Math.floor(Math.random() * 9999)}</span></div>
