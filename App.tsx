@@ -208,7 +208,9 @@ const App: React.FC = () => {
         ...prev,
         title: preset.title,
         subtitle: preset.subtitle,
-        layoutStyle: isDualityPreset ? 'duality' : (prev.layoutStyle === 'duality' ? 'minimal' : prev.layoutStyle),
+        // Remove automatic layout switching. Only switch if the preset is specifically Duality. 
+        // Otherwise, maintain current layout to allow free switching.
+        layoutStyle: isDualityPreset ? 'duality' : prev.layoutStyle,
         bodyText: preset.bodyText || prev.bodyText,
         secondaryBodyText: preset.secondaryBodyText || prev.secondaryBodyText,
         dualityBodyText: preset.dualityBodyText || prev.dualityBodyText,
@@ -347,7 +349,6 @@ const App: React.FC = () => {
 
   const downloadImage = async () => {
     if (!exportImage) return;
-    // 直接使用 exportFilename，移除之前硬编码的 -${timestamp} 后缀逻辑
     const fileName = exportFilename;
 
     if (Capacitor.isNativePlatform()) {
@@ -363,7 +364,6 @@ const App: React.FC = () => {
           });
           showToast(`已下载至系统“文档”：${fileName}`, "success");
         } catch (fileError) {
-          // 在备选的 Share 逻辑中保留临时文件的时间戳以防冲突，但不影响最终用户保存的文件名
           const tempFile = await Filesystem.writeFile({
             path: `temp_${Date.now()}.png`,
             data: base64Data,
