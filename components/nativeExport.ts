@@ -134,6 +134,7 @@ export const generateNativeCover = async (state: CoverState): Promise<string> =>
   const bodyText2 = normalizeText(bodyText2Raw);
 
   // 2. Setup Fonts
+  // 使用 Canvas 能够识别的通用字体回退，确保即使 WebFont 加载失败也能显示
   const titleFont = `900 ${36 * SCALE}px "Noto Serif SC", serif`;
   const subtitleFont = `700 ${14 * SCALE}px "Noto Serif SC", serif`;
   const bodyFont = `500 ${13 * SCALE}px "Noto Serif SC", serif`;
@@ -213,13 +214,13 @@ export const generateNativeCover = async (state: CoverState): Promise<string> =>
       let cursorY = PADDING;
       
       // Background Number 01
-      ctx.font = `900 ${144 * SCALE}px "Noto Serif SC"`;
+      ctx.font = `900 ${144 * SCALE}px "Noto Serif SC", serif`;
       ctx.globalAlpha = 0.06;
       ctx.fillText('01', -24 * SCALE, canvasHeight - halfHeight - (50 * SCALE)); // Rough positioning
       ctx.globalAlpha = 1.0;
 
       // Categories
-      ctx.font = `bold ${9 * SCALE}px "Noto Serif SC"`;
+      ctx.font = `bold ${9 * SCALE}px "Noto Serif SC", serif`;
       categories.forEach((cat, i) => {
           ctx.strokeStyle = state.textColor;
           ctx.lineWidth = 2 * SCALE;
@@ -238,8 +239,8 @@ export const generateNativeCover = async (state: CoverState): Promise<string> =>
       ctx.font = titleFont;
       const safeTitleWidth = CANVAS_WIDTH - PADDING * 2 - 40 * SCALE;
       // Simple font scaling for title
-      if (title.length > 8) ctx.font = `900 ${24 * SCALE}px "Noto Serif SC"`;
-      if (title.length > 12) ctx.font = `900 ${18 * SCALE}px "Noto Serif SC"`;
+      if (title.length > 8) ctx.font = `900 ${24 * SCALE}px "Noto Serif SC", serif`;
+      if (title.length > 12) ctx.font = `900 ${18 * SCALE}px "Noto Serif SC", serif`;
       ctx.fillText(title, CANVAS_WIDTH - PADDING, PADDING);
       
       // Subtitle
@@ -277,7 +278,7 @@ export const generateNativeCover = async (state: CoverState): Promise<string> =>
       cursorY = splitY + 50 * SCALE;
       
       // Background Number 02
-      ctx.font = `900 ${144 * SCALE}px "Noto Serif SC"`;
+      ctx.font = `900 ${144 * SCALE}px "Noto Serif SC", serif`;
       ctx.globalAlpha = 0.06;
       ctx.textAlign = 'right';
       ctx.fillText('02', CANVAS_WIDTH + 24*SCALE, splitY - 50*SCALE);
@@ -306,7 +307,7 @@ export const generateNativeCover = async (state: CoverState): Promise<string> =>
       ctx.font = `bold ${8 * SCALE}px monospace`;
       ctx.fillText('IDENTITY', PADDING + 10*SCALE, cursorY);
       
-      ctx.font = `900 italic ${20 * SCALE}px "Noto Serif SC"`;
+      ctx.font = `900 italic ${20 * SCALE}px "Noto Serif SC", serif`;
       ctx.fillText(state.author, PADDING + 10*SCALE, cursorY + 12*SCALE);
 
       // Tech details
@@ -324,13 +325,13 @@ export const generateNativeCover = async (state: CoverState): Promise<string> =>
       // Header Group (Centered)
       ctx.textAlign = 'center';
       
-      ctx.font = `normal ${10 * SCALE}px "Noto Serif SC"`;
+      ctx.font = `normal ${10 * SCALE}px "Noto Serif SC", serif`;
       ctx.globalAlpha = 0.7;
       ctx.fillText('THE STORY OF', CANVAS_WIDTH/2, cursorY);
       cursorY += 20 * SCALE;
 
       ctx.font = titleFont;
-      if (title.length > 8) ctx.font = `900 ${28 * SCALE}px "Noto Serif SC"`;
+      if (title.length > 8) ctx.font = `900 ${28 * SCALE}px "Noto Serif SC", serif`;
       ctx.globalAlpha = 1.0;
       ctx.fillText(title, CANVAS_WIDTH/2, cursorY);
       cursorY += 45 * SCALE;
@@ -386,7 +387,7 @@ export const generateNativeCover = async (state: CoverState): Promise<string> =>
       
       cursorY += 15 * SCALE;
       ctx.textAlign = 'left';
-      ctx.font = `italic ${12 * SCALE}px "Noto Serif SC"`;
+      ctx.font = `italic ${12 * SCALE}px "Noto Serif SC", serif`;
       ctx.fillText(state.author, PADDING + 80*SCALE, cursorY);
       
       ctx.font = `bold ${8 * SCALE}px monospace`;
@@ -397,7 +398,7 @@ export const generateNativeCover = async (state: CoverState): Promise<string> =>
       let catX = CANVAS_WIDTH - PADDING;
       categories.forEach(cat => {
           ctx.strokeRect(catX - 50*SCALE, cursorY - 5*SCALE, 50*SCALE, 16*SCALE);
-          ctx.font = `bold ${8 * SCALE}px "Noto Serif SC"`;
+          ctx.font = `bold ${8 * SCALE}px "Noto Serif SC", serif`;
           ctx.fillText(cat, catX - 5*SCALE, cursorY);
           catX -= 55 * SCALE;
       });
@@ -436,7 +437,7 @@ export const generateNativeCover = async (state: CoverState): Promise<string> =>
           ctx.fillRect(PADDING, cursorY, 60*SCALE, 16*SCALE);
           ctx.strokeRect(PADDING, cursorY, 60*SCALE, 16*SCALE);
           ctx.fillStyle = state.textColor;
-          ctx.font = `bold ${8 * SCALE}px "Noto Serif SC"`;
+          ctx.font = `bold ${8 * SCALE}px "Noto Serif SC", serif`;
           ctx.fillText(cat, PADDING + 4*SCALE, cursorY + 2*SCALE);
           
           // Accent bar
@@ -450,8 +451,8 @@ export const generateNativeCover = async (state: CoverState): Promise<string> =>
       ctx.fillStyle = state.textColor;
       ctx.font = titleFont;
       // Auto scale title
-      if (title.length > 8) ctx.font = `900 ${28 * SCALE}px "Noto Serif SC"`;
-      if (title.length > 14) ctx.font = `900 ${20 * SCALE}px "Noto Serif SC"`;
+      if (title.length > 8) ctx.font = `900 ${28 * SCALE}px "Noto Serif SC", serif`;
+      if (title.length > 14) ctx.font = `900 ${20 * SCALE}px "Noto Serif SC", serif`;
       ctx.fillText(title, PADDING, cursorY);
       cursorY += 45 * SCALE;
 
@@ -495,7 +496,7 @@ export const generateNativeCover = async (state: CoverState): Promise<string> =>
       ctx.fillText('AUTHORIZED PERSONNEL', PADDING, cursorY);
       ctx.globalAlpha = 1.0;
       
-      ctx.font = `bold ${12 * SCALE}px "Noto Serif SC"`;
+      ctx.font = `bold ${12 * SCALE}px "Noto Serif SC", serif`;
       ctx.fillText(author, PADDING, cursorY + 12*SCALE);
       
       ctx.textAlign = 'right';

@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { CoverState, ContentPreset, EditorTab, AdvancedPreset, TransformationRule } from './types';
 import { 
@@ -24,6 +25,7 @@ import { toPng } from 'html-to-image';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import { generateNativeCover } from './components/nativeExport';
 
 const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@400;700;900&family=ZCOOL+QingKe+HuangYou&display=swap";
 
@@ -77,6 +79,7 @@ const App: React.FC = () => {
       title: INITIAL_TITLE, subtitle: INITIAL_SUBTITLE, bodyText: INITIAL_BODY_TEXT, secondaryBodyText: "", dualityBodyText: "", dualitySecondaryBodyText: "",
       category: INITIAL_CATEGORY, author: INITIAL_AUTHOR, backgroundColor: INITIAL_BG_COLOR, accentColor: INITIAL_ACCENT_COLOR, textColor: INITIAL_TEXT_COLOR,
       layoutStyle: 'minimal', mode: 'long-text', bodyTextSize: 'text-[13px]', bodyTextAlign: 'text-justify', isBodyBold: false, isBodyItalic: false,
+      titleFont: 'serif', bodyFont: 'serif'
     };
   });
 
@@ -209,8 +212,6 @@ const App: React.FC = () => {
         ...prev,
         title: preset.title,
         subtitle: preset.subtitle,
-        // Remove automatic layout switching. Only switch if the preset is specifically Duality. 
-        // Otherwise, maintain current layout to allow free switching.
         layoutStyle: isDualityPreset ? 'duality' : prev.layoutStyle,
         bodyText: preset.bodyText || prev.bodyText,
         secondaryBodyText: preset.secondaryBodyText || prev.secondaryBodyText,
@@ -260,7 +261,6 @@ const App: React.FC = () => {
             const text = element.innerText || element.textContent || "";
             if (!text.trim()) return;
 
-            // 1. Check for Structure Rules (Priority) - Independent of regex
             const structRule = rules.find(r => r.isActive && r.structure === 'multi-align-row');
             if (structRule) {
                 const sep = structRule.separator || '|';
@@ -295,7 +295,6 @@ const App: React.FC = () => {
                 }
             }
 
-            // 2. Normal Rules (Paragraph & Match)
             let hasChanges = false;
             let currentHTML = element.innerHTML;
             
@@ -387,20 +386,38 @@ const App: React.FC = () => {
   }
 
   const handleExport = async (filename?: string) => {
-    if (!previewRef.current) return;
     setIsExporting(true); 
     setExportImage(null); 
     if (filename) setExportFilename(filename);
     setShowExportModal(true);
+
     try {
-      await document.fonts.ready; await new Promise(r => setTimeout(r, 500)); 
-      const fontCss = await getEmbedFontCSS();
-      const exportOptions: any = { cacheBust: true, pixelRatio: 4, backgroundColor: state.backgroundColor, fontEmbedCSS: fontCss };
-      if (state.mode === 'cover') { exportOptions.width = 400; exportOptions.height = 440; exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; }
-      else { exportOptions.width = 400; exportOptions.style = { width: '400px', maxWidth: 'none', transform: 'none', margin: '0' }; }
-      const dataUrl = await toPng(previewRef.current, exportOptions);
-      setExportImage(dataUrl);
-    } catch (e) { console.error("Export failed:", e); showToast("导出失败", "error"); setShowExportModal(false); } finally { setIsExporting(false); }
+        let dataUrl: string;
+
+        // 检测平台：如果是 Native (Android/iOS APK)，使用自定义 Canvas 绘制
+        if (Capacitor.isNativePlatform()) {
+             // 延时一点确保状态同步（虽然不绝对必要，但保险）
+             await new Promise(r => setTimeout(r, 100));
+             dataUrl = await generateNativeCover(state);
+        } else {
+            // Web 端继续使用 html-to-image
+            if (!previewRef.current) throw new Error('Preview ref not found');
+            await document.fonts.ready; await new Promise(r => setTimeout(r, 500)); 
+            const fontCss = await getEmbedFontCSS();
+            const exportOptions: any = { cacheBust: true, pixelRatio: 4, backgroundColor: state.backgroundColor, fontEmbedCSS: fontCss };
+            if (state.mode === 'cover') { exportOptions.width = 400; exportOptions.height = 440; exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; }
+            else { exportOptions.width = 400; exportOptions.style = { width: '400px', maxWidth: 'none', transform: 'none', margin: '0' }; }
+            dataUrl = await toPng(previewRef.current, exportOptions);
+        }
+
+        setExportImage(dataUrl);
+    } catch (e) { 
+        console.error("Export failed:", e); 
+        showToast("导出失败，请重试", "error"); 
+        setShowExportModal(false); 
+    } finally { 
+        setIsExporting(false); 
+    }
   };
 
   const downloadImage = async () => {

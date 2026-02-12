@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { ArrowDownTrayIcon, XMarkIcon, ArrowPathIcon, PaintBrushIcon } from '@heroicons/react/24/solid';
+import { ArrowDownTrayIcon, XMarkIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 
 interface ExportModalProps {
   imageUrl: string | null;
@@ -34,13 +33,10 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageUrl, isExporting, onClos
 
         <div className="flex-1 min-h-0 bg-gray-100/80 rounded-lg overflow-auto p-4 border border-gray-200">
           {isExporting ? (
-            <div className="flex h-full w-full flex-col items-center justify-center gap-4 text-gray-500 animate-pulse">
-              <div className="relative">
-                <ArrowPathIcon className="w-12 h-12 animate-spin text-purple-300" />
-                <PaintBrushIcon className="w-6 h-6 text-purple-600 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-              </div>
-              <p className="font-bold text-lg text-gray-600">正在精心绘制...</p>
-              <p className="text-xs text-gray-400">正在进行像素级渲染与排版</p>
+            <div className="flex h-full w-full flex-col items-center justify-center gap-4 text-gray-500">
+              <ArrowPathIcon className="w-10 h-10 animate-spin text-purple-500" />
+              <p className="font-medium">正在生成高清图片...</p>
+              <p className="text-xs text-gray-400">长图模式可能需要更长时间</p>
             </div>
           ) : imageUrl ? (
             <img 
@@ -64,7 +60,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ imageUrl, isExporting, onClos
             className="px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-br from-purple-600 to-blue-500 rounded-lg shadow-md hover:from-purple-700 hover:to-blue-600 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             <ArrowDownTrayIcon className="w-5 h-5" />
-            保存到相册
+            下载图片
           </button>
         </div>
       </div>
