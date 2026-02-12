@@ -1,4 +1,5 @@
 
+
 export interface CoverState {
   title: string;
   subtitle: string;
@@ -50,7 +51,8 @@ export interface TransformationRule {
   pattern: string;
   formatting: FormattingStyles;
   scope: 'match' | 'paragraph';
-  structure?: 'multi-align-row'; // 新增：结构化布局标识
+  structure?: 'multi-align-row';
+  separator?: string; // 分割符号
   isActive: boolean;
 }
 

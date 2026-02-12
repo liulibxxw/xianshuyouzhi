@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { AdvancedPreset, CoverState, TransformationRule, FormattingStyles } from '../types';
 import { TEXT_PALETTE } from '../constants';
@@ -13,7 +14,8 @@ import {
     Bars3Icon,
     ArrowsRightLeftIcon,
     Bars3BottomRightIcon,
-    PencilSquareIcon
+    PencilSquareIcon,
+    MinusIcon
 } from '@heroicons/react/24/solid';
 
 interface PresetPanelProps {
@@ -50,51 +52,90 @@ const RuleConfigItem: React.FC<{
     };
 
     const isParagraphScope = rule.scope === 'paragraph';
+    const isStructureMode = rule.structure === 'multi-align-row';
 
     return (
-        <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs flex flex-col gap-3 shadow-sm">
-            <div className="flex justify-between items-center">
-                <input 
-                    className="font-bold bg-transparent border-none p-0 focus:ring-0 text-gray-700 w-full text-xs"
-                    value={rule.name}
-                    onChange={(e) => onChange({...rule, name: e.target.value})}
-                    placeholder="规则名称"
-                />
+        <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs flex flex-col gap-3 shadow-sm transition-all hover:shadow-md">
+            {/* 第一行：名称输入 */}
+            <div className="flex justify-between items-center gap-2">
+                <div className="flex-1 border-b border-gray-200 pb-1 focus-within:border-purple-300 transition-colors">
+                    <input 
+                        className="font-bold bg-transparent border-none p-0 focus:ring-0 text-gray-700 w-full text-xs placeholder-gray-400"
+                        value={rule.name}
+                        onChange={(e) => onChange({...rule, name: e.target.value})}
+                        placeholder="在此输入规则名称..."
+                    />
+                </div>
                 <button onClick={onDelete} className="text-gray-400 hover:text-red-500">
                     <XMarkIcon className="w-4 h-4" />
                 </button>
             </div>
             
-            <div className="flex flex-col gap-1.5">
-                <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-gray-400 shrink-0 w-8">关键词</span>
-                    <input 
-                        className="flex-1 bg-white border border-gray-200 rounded px-2 py-1 font-mono text-[10px] outline-none focus:border-purple-300"
-                        value={rule.pattern}
-                        onChange={(e) => onChange({...rule, pattern: e.target.value})}
-                        placeholder="输入字符后点下方转换..."
-                    />
-                </div>
+            {/* 第二行：触发条件 (关键词 或 分割符) */}
+            <div className="flex flex-col gap-1">
+                {isStructureMode ? (
+                     <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded px-2 py-2 animate-in slide-in-from-left-2">
+                        <span className="text-[10px] font-bold text-indigo-600 shrink-0">触发符号</span>
+                        <input 
+                            className="flex-1 bg-white border border-indigo-200 rounded px-2 py-1 font-mono text-xs text-indigo-700 focus:outline-none focus:border-indigo-400 placeholder-indigo-300 text-center"
+                            value={rule.separator || ''}
+                            onChange={(e) => onChange({...rule, separator: e.target.value})}
+                            placeholder="输入符号，如 |"
+                        />
+                        <div className="text-[9px] text-indigo-400 ml-2">此符号所在的段落将自动应用三段式结构</div>
+                    </div>
+                ) : (
+                    <>
+                    <div className="flex items-center gap-2 bg-white border border-gray-200 rounded px-2 py-1.5 focus-within:border-purple-300 focus-within:ring-1 focus-within:ring-purple-100 transition-all">
+                        <span className="text-[10px] font-bold text-gray-400 shrink-0">关键词</span>
+                        <input 
+                            className="flex-1 bg-transparent border-none p-0 font-mono text-[10px] outline-none focus:ring-0 w-full min-w-0"
+                            value={rule.pattern}
+                            onChange={(e) => onChange({...rule, pattern: e.target.value})}
+                            placeholder="输入字符后点下方转换..."
+                        />
+                    </div>
+                    {/* 模式显示 */}
+                    <div className="text-[9px] text-gray-400 px-1 flex items-center justify-between">
+                        <span>当前模式: <span className="font-bold text-purple-600">{isParagraphScope ? '匹配整段' : '仅修饰关键词'}</span></span>
+                        {!isParagraphScope && <span className="opacity-60">仅改变颜色/字号/粗体，对齐将影响整段</span>}
+                    </div>
+                    </>
+                )}
+            </div>
+
+            {!isStructureMode && (
                 <div className="flex gap-1 ml-10">
                     <button onClick={() => handleQuickRegex('before')} className="px-2 py-0.5 bg-white border border-gray-200 rounded text-[9px] text-gray-400 hover:text-purple-600 hover:border-purple-200 transition-all">之前</button>
                     <button onClick={() => handleQuickRegex('between')} className="px-2 py-0.5 bg-white border border-gray-200 rounded text-[9px] text-gray-400 hover:text-purple-600 hover:border-purple-200 transition-all">之间</button>
                     <button onClick={() => handleQuickRegex('after')} className="px-2 py-0.5 bg-white border border-gray-200 rounded text-[9px] text-gray-400 hover:text-purple-600 hover:border-purple-200 transition-all">之后</button>
                 </div>
-            </div>
+            )}
 
             <div className="flex flex-col gap-2 border-t border-gray-100 pt-2">
                 <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-bold text-gray-400">排版修饰</span>
+                    <span className="text-[10px] font-bold text-gray-400">样式与结构</span>
                     <button 
-                        onClick={() => onChange({ ...rule, structure: rule.structure === 'multi-align-row' ? undefined : 'multi-align-row' })}
-                        className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black transition-all border ${rule.structure === 'multi-align-row' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-200 text-gray-400'}`}
+                        onClick={() => onChange({ ...rule, structure: isStructureMode ? undefined : 'multi-align-row' })}
+                        className={`flex items-center gap-1 px-2 py-1 rounded text-[9px] font-bold transition-all border ${isStructureMode ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm transform scale-105' : 'bg-white border-gray-200 text-gray-500'}`}
                     >
                         <ArrowsRightLeftIcon className="w-3 h-3" />
                         三段式结构
                     </button>
                 </div>
                 
-                <div className="flex flex-wrap gap-2 items-center">
+                {isStructureMode && (
+                     <div className="flex flex-col gap-1 mt-1 px-2 py-1.5 bg-indigo-50/50 rounded border border-indigo-50 text-[9px] text-indigo-800">
+                         <div className="flex justify-between opacity-70 mb-1"><span>布局预览</span><span>自动排版</span></div>
+                         <div className="flex justify-between items-center font-mono text-[8px] bg-white border border-indigo-100 p-1 rounded">
+                             <span className="text-left flex-1">Text</span>
+                             <span className="text-center font-bold px-1 text-indigo-500">{rule.separator || '|'}</span>
+                             <span className="text-right flex-1">Text</span>
+                         </div>
+                    </div>
+                )}
+                
+                <div className="flex flex-wrap gap-2 items-center mt-1">
                     {!isParagraphScope ? (
                         <div className="flex gap-1 overflow-x-auto max-w-[100px] custom-scrollbar py-0.5">
                             {TEXT_PALETTE.map(c => (
@@ -115,36 +156,43 @@ const RuleConfigItem: React.FC<{
                     <div className="flex items-center gap-1 bg-white border border-gray-200 rounded px-1.5 py-0.5">
                         <span className="text-[9px] text-gray-400">字号</span>
                         <input 
-                            type="number"
-                            className="w-8 bg-transparent border-none p-0 text-[10px] font-bold text-center focus:ring-0"
-                            value={rule.formatting.fontSize || ''}
-                            onChange={(e) => updateFormatting({ fontSize: parseInt(e.target.value) || undefined })}
-                            placeholder="--"
+                            type="range"
+                            min="10"
+                            max="40"
+                            className="w-16 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                            value={rule.formatting.fontSize || 13}
+                            onChange={(e) => updateFormatting({ fontSize: parseInt(e.target.value) })}
                         />
+                        <span className="text-[9px] font-mono font-bold text-gray-500 w-3">{rule.formatting.fontSize || 13}</span>
                     </div>
 
                     <button 
                         onClick={() => updateFormatting({ isBold: !rule.formatting.isBold })}
                         className={`p-1 rounded ${rule.formatting.isBold ? 'bg-purple-100 text-purple-600 border border-purple-200' : 'bg-white border border-gray-200 text-gray-400'}`}
+                        title="加粗"
                     >
                         <BoldIcon className="w-3 h-3" />
                     </button>
 
-                    <button 
-                        onClick={() => {
-                            const newScope = rule.scope === 'match' ? 'paragraph' : 'match';
-                            onChange({...rule, scope: newScope});
-                        }}
-                        className={`px-2 py-1 rounded text-[9px] font-bold border transition-all ${rule.scope === 'paragraph' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-200 text-gray-500'}`}
-                    >
-                        {rule.scope === 'paragraph' ? '整段' : '仅词'}
-                    </button>
+                    {!isStructureMode && (
+                        <button 
+                            onClick={() => {
+                                const newScope = rule.scope === 'match' ? 'paragraph' : 'match';
+                                onChange({...rule, scope: newScope});
+                            }}
+                            className={`px-2 py-1 rounded text-[9px] font-bold border transition-all ${rule.scope === 'paragraph' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-200 text-gray-500'}`}
+                            title="切换作用范围"
+                        >
+                            {rule.scope === 'paragraph' ? '整段' : '仅词'}
+                        </button>
+                    )}
                 </div>
-                {isParagraphScope && (
+                
+                {!isStructureMode && (
                     <div className="flex gap-1 justify-around bg-white border border-gray-100 rounded p-1">
-                        <button onClick={() => updateFormatting({ textAlign: 'left' })} className={`flex-1 flex justify-center py-1 rounded ${rule.formatting.textAlign === 'left' ? 'bg-purple-50 text-purple-600' : 'text-gray-300'}`}><Bars3BottomLeftIcon className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => updateFormatting({ textAlign: 'center' })} className={`flex-1 flex justify-center py-1 rounded ${rule.formatting.textAlign === 'center' ? 'bg-purple-50 text-purple-600' : 'text-gray-300'}`}><Bars3Icon className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => updateFormatting({ textAlign: 'right' })} className={`flex-1 flex justify-center py-1 rounded ${rule.formatting.textAlign === 'right' ? 'bg-purple-50 text-purple-600' : 'text-gray-300'}`}><Bars3BottomRightIcon className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => updateFormatting({ textAlign: 'left' })} className={`flex-1 flex justify-center py-1 rounded ${rule.formatting.textAlign === 'left' ? 'bg-purple-50 text-purple-600' : 'text-gray-300'}`} title="整段左对齐"><Bars3BottomLeftIcon className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => updateFormatting({ textAlign: 'center' })} className={`flex-1 flex justify-center py-1 rounded ${rule.formatting.textAlign === 'center' ? 'bg-purple-50 text-purple-600' : 'text-gray-300'}`} title="整段居中"><Bars3Icon className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => updateFormatting({ textAlign: 'right' })} className={`flex-1 flex justify-center py-1 rounded ${rule.formatting.textAlign === 'right' ? 'bg-purple-50 text-purple-600' : 'text-gray-300'}`} title="整段右对齐"><Bars3BottomRightIcon className="w-3.5 h-3.5" /></button>
                     </div>
                 )}
             </div>
@@ -157,7 +205,7 @@ export const SavePresetModal: React.FC<{
     onClose: () => void;
     onConfirm: (preset: AdvancedPreset) => void;
     currentState: CoverState;
-    initialData?: AdvancedPreset; // 用于编辑模式
+    initialData?: AdvancedPreset;
 }> = ({ isOpen, onClose, onConfirm, currentState, initialData }) => {
     const [name, setName] = useState('');
     const [includeStyle, setIncludeStyle] = useState(true);
@@ -165,7 +213,6 @@ export const SavePresetModal: React.FC<{
     const [rules, setRules] = useState<TransformationRule[]>([]);
     const [isScanning, setIsScanning] = useState(false);
 
-    // 如果有初始数据，填充它
     useEffect(() => {
         if (initialData) {
             setName(initialData.name);
@@ -194,20 +241,24 @@ export const SavePresetModal: React.FC<{
         multiRows.forEach((row, idx) => {
             const htmlRow = row as HTMLElement;
             const textParts = Array.from(htmlRow.querySelectorAll('div')).map(d => (d as HTMLElement).innerText.trim());
+            // Attempt to deduce separator
+            // Since we can't easily know the original separator from the DOM structure, we default to '|' or just create a rule
             const combinedText = textParts.filter(Boolean).join(' | ');
             if (combinedText) {
                 const firstCol = htmlRow.querySelector('div') as HTMLElement;
                 const formatting: FormattingStyles = {};
                 if (firstCol.style.fontSize) formatting.fontSize = parseInt(firstCol.style.fontSize);
                 if (firstCol.style.fontWeight === 'bold') formatting.isBold = true;
-                const pattern = textParts.filter(Boolean).map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*?');
-                const key = `struct_${pattern}`;
+                if (firstCol.style.color) formatting.color = firstCol.style.color;
+                
+                const key = `struct_${idx}`;
                 if (!seenKeys.has(key)) {
                     seenKeys.add(key);
                     newRules.push({
                         id: `rule_struct_${Date.now()}_${idx}`,
-                        name: `结构: ${textParts[0].slice(0, 3)}...`,
-                        pattern: pattern,
+                        name: `结构规则`,
+                        pattern: '',
+                        separator: '|', // Default guess
                         formatting,
                         scope: 'paragraph',
                         structure: 'multi-align-row',
@@ -227,6 +278,8 @@ export const SavePresetModal: React.FC<{
             if (htmlEl.style.color) formatting.color = htmlEl.style.color;
             if (htmlEl.style.fontSize) formatting.fontSize = parseInt(htmlEl.style.fontSize);
             if (htmlEl.style.fontWeight === 'bold') formatting.isBold = true;
+            if (htmlEl.style.textAlign) formatting.textAlign = htmlEl.style.textAlign as any;
+
             const key = `style_${text.trim()}`;
             if (!seenKeys.has(key)) {
                 seenKeys.add(key);
@@ -285,18 +338,18 @@ export const SavePresetModal: React.FC<{
                         <div className="flex gap-4">
                             <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                                 <input type="checkbox" checked={includeStyle} onChange={e => setIncludeStyle(e.target.checked)} className="rounded text-purple-600" />
-                                <span className="font-medium">包含基础风格</span>
+                                <span className="font-medium">包含风格</span>
                             </label>
                             <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                                 <input type="checkbox" checked={includeContent} onChange={e => setIncludeContent(e.target.checked)} className="rounded text-purple-600" />
-                                <span className="font-medium">包含文字内容</span>
+                                <span className="font-medium">包含草稿</span>
                             </label>
                         </div>
                         <div className="border-t border-gray-100 pt-4">
                             <div className="flex justify-between items-center mb-3">
                                 <div className="flex flex-col">
                                     <span className="text-xs font-bold text-purple-600 uppercase">自动排版规则</span>
-                                    <span className="text-[10px] text-gray-400">满足关键词时应用以下修饰</span>
+                                    <span className="text-[10px] text-gray-400">满足条件时应用以下修饰</span>
                                 </div>
                                 <button onClick={scanTextForRules} className="flex items-center gap-1 text-[10px] bg-purple-50 text-purple-600 px-2 py-1 rounded-md border border-purple-100">
                                     <EyeDropperIcon className="w-3 h-3" /> {isScanning ? '扫描中...' : '提取当前样式'}

@@ -241,51 +241,103 @@ const App: React.FC = () => {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = html;
         const nodes = Array.from(tempDiv.childNodes);
+        
         nodes.forEach(node => {
-            let text = "";
-            if (node.nodeType === Node.ELEMENT_NODE) text = (node as HTMLElement).innerText || "";
-            else if (node.nodeType === Node.TEXT_NODE) text = node.textContent || "";
+            let element: HTMLElement;
+            let isTextNodeReplacement = false;
+
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                element = node as HTMLElement;
+            } else if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
+                element = document.createElement('div');
+                element.textContent = node.textContent;
+                isTextNodeReplacement = true;
+            } else {
+                return;
+            }
+            
+            const text = element.innerText || element.textContent || "";
             if (!text.trim()) return;
-            for (const rule of rules) {
-                if (!rule.isActive) continue;
-                let regex: RegExp;
-                try { regex = new RegExp(rule.pattern, 'gi'); } catch (e) { continue; }
-                if (regex.test(text)) {
-                    const fmt = rule.formatting;
-                    if (rule.structure === 'multi-align-row') {
-                        const parts = text.split(/[|｜\t,，\u2014]+/).map(p => p.trim()).filter(Boolean);
-                        if (parts.length > 0) {
-                            const container = document.createElement('div');
-                            container.className = 'multi-align-row';
-                            container.style.display = 'grid'; container.style.gridTemplateColumns = '1fr 1fr 1fr'; container.style.width = '100%';
-                            const createCol = (content: string, align: string) => {
-                                const col = document.createElement('div'); col.style.textAlign = align; col.innerHTML = content || '&nbsp;';
-                                if (fmt.fontSize) col.style.fontSize = `${fmt.fontSize}px`;
-                                if (fmt.isBold) col.style.fontWeight = 'bold';
-                                return col;
-                            };
-                            container.appendChild(createCol(parts[0], 'left'));
-                            container.appendChild(createCol(parts.length > 2 ? parts[1] : "", 'center'));
-                            container.appendChild(createCol(parts.length > 2 ? parts[2] : (parts.length === 2 ? parts[1] : ""), 'right'));
-                            node.replaceWith(container); return; 
-                        }
-                    }
-                    if (rule.scope === 'paragraph') {
-                        let element = node.nodeType === Node.TEXT_NODE ? document.createElement('div') : (node as HTMLElement).cloneNode(true) as HTMLElement;
-                        if (node.nodeType === Node.TEXT_NODE) element.textContent = node.textContent;
-                        if (fmt.fontSize) element.style.fontSize = `${fmt.fontSize}px`;
-                        if (fmt.isBold) element.style.fontWeight = 'bold';
-                        if (fmt.textAlign) element.style.textAlign = fmt.textAlign;
-                        node.replaceWith(element); return;
-                    } else if (rule.scope === 'match') {
-                        const styleStr = [fmt.color ? `color:${fmt.color}` : '', fmt.fontSize ? `font-size:${fmt.fontSize}px` : '', fmt.isBold ? `font-weight:bold` : ''].filter(Boolean).join(';');
-                        if (node.nodeType === Node.TEXT_NODE) {
-                            const span = document.createElement('span'); span.innerHTML = node.textContent!.replace(regex, match => `<span style="${styleStr}">${match}</span>`);
-                            node.replaceWith(span);
-                        } else (node as HTMLElement).innerHTML = (node as HTMLElement).innerHTML.replace(regex, match => `<span style="${styleStr}">${match}</span>`);
-                        return;
-                    }
+
+            // 1. Check for Structure Rules (Priority) - Independent of regex
+            const structRule = rules.find(r => r.isActive && r.structure === 'multi-align-row');
+            if (structRule) {
+                const sep = structRule.separator || '|';
+                if (text.includes(sep)) {
+                    const container = document.createElement('div');
+                    container.className = 'multi-align-row';
+                    container.style.display = 'grid';
+                    container.style.gridTemplateColumns = '1fr 1fr 1fr';
+                    container.style.width = '100%';
+                    
+                    const firstSepIndex = text.indexOf(sep);
+                    const leftPart = text.substring(0, firstSepIndex).trim();
+                    const rightPart = text.substring(firstSepIndex + sep.length).trim();
+                    
+                    const createCol = (content: string, align: string) => {
+                         const col = document.createElement('div');
+                         col.style.textAlign = align;
+                         col.innerHTML = content || '&nbsp;';
+                         if (structRule.formatting.fontSize) col.style.fontSize = `${structRule.formatting.fontSize}px`;
+                         if (structRule.formatting.isBold) col.style.fontWeight = 'bold';
+                         if (structRule.formatting.color) col.style.color = structRule.formatting.color;
+                         return col;
+                    };
+
+                    container.appendChild(createCol(leftPart, 'left'));
+                    container.appendChild(createCol(sep, 'center'));
+                    container.appendChild(createCol(rightPart, 'right'));
+                    
+                    node.replaceWith(container);
+                    return; 
                 }
+            }
+
+            // 2. Normal Rules (Paragraph & Match)
+            let hasChanges = false;
+            let currentHTML = element.innerHTML;
+            
+            rules.forEach(rule => {
+                if (!rule.isActive || rule.structure) return;
+                try {
+                    const regex = new RegExp(rule.pattern, 'gi');
+                    if (regex.test(text)) {
+                         if (rule.scope === 'paragraph') {
+                             if (rule.formatting.textAlign) element.style.textAlign = rule.formatting.textAlign;
+                             if (rule.formatting.fontSize) element.style.fontSize = `${rule.formatting.fontSize}px`;
+                             if (rule.formatting.isBold) element.style.fontWeight = 'bold';
+                             if (rule.formatting.color) element.style.color = rule.formatting.color;
+                             hasChanges = true;
+                         } 
+                         else if (rule.scope === 'match') {
+                             if (rule.formatting.textAlign) {
+                                 element.style.textAlign = rule.formatting.textAlign;
+                                 hasChanges = true;
+                             }
+                             
+                             const fmt = rule.formatting;
+                             const styleStr = [
+                                fmt.color ? `color:${fmt.color}` : '',
+                                fmt.fontSize ? `font-size:${fmt.fontSize}px` : '',
+                                fmt.isBold ? `font-weight:bold` : ''
+                             ].filter(Boolean).join(';');
+                             
+                             if (styleStr) {
+                                 currentHTML = currentHTML.replace(regex, match => `<span style="${styleStr}">${match}</span>`);
+                                 hasChanges = true;
+                             }
+                         }
+                    }
+                } catch(e) {}
+            });
+
+            if (currentHTML !== element.innerHTML) {
+                element.innerHTML = currentHTML;
+                hasChanges = true;
+            }
+
+            if (isTextNodeReplacement && hasChanges) {
+                 node.replaceWith(element);
             }
         });
         return tempDiv.innerHTML;
