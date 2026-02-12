@@ -104,8 +104,10 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     const length = title.length;
     let sizeClass = 'text-4xl';
     
+    // Improved logic for extreme length to ensure no truncation
     if (layoutStyle === 'split') {
-        if (length > 50) sizeClass = 'text-[8px]';
+        if (length > 60) sizeClass = 'text-[7px]';
+        else if (length > 50) sizeClass = 'text-[8px]';
         else if (length > 40) sizeClass = 'text-[9px]';
         else if (length > 30) sizeClass = 'text-[10px]';
         else if (length > 25) sizeClass = 'text-[12px]';
@@ -115,7 +117,8 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
         else if (length > 8) sizeClass = 'text-3xl';
         else sizeClass = 'text-5xl';
     } else if (layoutStyle === 'minimal') {
-        if (length > 55) sizeClass = 'text-[8px]';
+        if (length > 65) sizeClass = 'text-[7px]';
+        else if (length > 55) sizeClass = 'text-[8px]';
         else if (length > 45) sizeClass = 'text-[9px]';
         else if (length > 35) sizeClass = 'text-[9px]';
         else if (length > 30) sizeClass = 'text-[11px]';
@@ -125,7 +128,8 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
         else if (length > 10) sizeClass = 'text-2xl';
         else sizeClass = 'text-4xl';
     } else {
-        if (length > 55) sizeClass = 'text-[8px]';
+        if (length > 65) sizeClass = 'text-[7px]';
+        else if (length > 55) sizeClass = 'text-[8px]';
         else if (length > 45) sizeClass = 'text-[9px]';
         else if (length > 35) sizeClass = 'text-[10px]';
         else if (length > 30) sizeClass = 'text-[12px]';
@@ -139,6 +143,8 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   };
 
   const getSubtitleSizeClass = (baseClass: string, length: number) => {
+      // Significantly increased granularity for subtitle resizing
+      if (length > 80) return 'text-[6px]';
       if (length > 65) return 'text-[7px]';
       if (length > 55) return 'text-[8px]';
       if (length > 45) return 'text-[9px]';
@@ -151,7 +157,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   };
   
   const getBodyClasses = () => {
-      // 关键修改：不再从父容器强制 bodyTextAlign (如 text-justify)，由富文本内部样式控制
       return `${bodyTextSize} break-all whitespace-pre-wrap leading-[1.5] outline-none [&_*]:text-inherit [&_*]:font-serif-sc`;
   };
 

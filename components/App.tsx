@@ -207,12 +207,15 @@ const App: React.FC = () => {
         ...prev,
         title: preset.title,
         subtitle: preset.subtitle,
-        // Removed forced layout switching to allow free usage of any preset in Duality mode
+        // Don't force layout change unless it's strictly required by preset (which we are avoiding to allow flexibility)
+        // Use the current layout style.
+        layoutStyle: prev.layoutStyle, 
         bodyText: preset.bodyText || prev.bodyText,
         secondaryBodyText: preset.secondaryBodyText || prev.secondaryBodyText,
-        // Ensure duality text fields are populated even if the preset is a normal preset
-        dualityBodyText: preset.dualityBodyText || preset.bodyText || prev.dualityBodyText,
-        dualitySecondaryBodyText: preset.dualitySecondaryBodyText || preset.secondaryBodyText || prev.dualitySecondaryBodyText,
+        // Crucial fix: Don't fallback to prev.dualityBodyText when loading a new preset.
+        // If the preset has duality text, use it. If not, use its normal bodyText. If empty, use empty string.
+        dualityBodyText: preset.dualityBodyText || preset.bodyText || "",
+        dualitySecondaryBodyText: preset.dualitySecondaryBodyText || preset.secondaryBodyText || "",
         category: preset.category,
         author: preset.author
     }));
