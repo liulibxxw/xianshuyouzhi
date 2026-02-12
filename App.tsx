@@ -209,8 +209,6 @@ const App: React.FC = () => {
         ...prev,
         title: preset.title,
         subtitle: preset.subtitle,
-        // Remove automatic layout switching. Only switch if the preset is specifically Duality. 
-        // Otherwise, maintain current layout to allow free switching.
         layoutStyle: isDualityPreset ? 'duality' : prev.layoutStyle,
         bodyText: preset.bodyText || prev.bodyText,
         secondaryBodyText: preset.secondaryBodyText || prev.secondaryBodyText,
@@ -250,7 +248,8 @@ const App: React.FC = () => {
             if (node.nodeType === Node.ELEMENT_NODE) {
                 element = node as HTMLElement;
             } else if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
-                element = document.createElement('div');
+                // IMPORTANT: Changed from 'div' to 'span' to prevent forcing block display and empty lines
+                element = document.createElement('span'); 
                 element.textContent = node.textContent;
                 isTextNodeReplacement = true;
             } else {
@@ -270,6 +269,7 @@ const App: React.FC = () => {
                     container.style.display = 'grid';
                     container.style.gridTemplateColumns = '1fr 1fr 1fr';
                     container.style.width = '100%';
+                    container.style.margin = '0'; // Ensure no extra margin
                     
                     const firstSepIndex = text.indexOf(sep);
                     const leftPart = text.substring(0, firstSepIndex).trim();
@@ -283,6 +283,7 @@ const App: React.FC = () => {
                          if (structRule.formatting.isBold) col.style.fontWeight = 'bold';
                          if (structRule.formatting.isItalic) col.style.fontStyle = 'italic';
                          if (structRule.formatting.color) col.style.color = structRule.formatting.color;
+                         col.style.margin = '0'; // Explicit 0 margin
                          return col;
                     };
 
@@ -305,7 +306,10 @@ const App: React.FC = () => {
                     const regex = new RegExp(rule.pattern, 'gi');
                     if (regex.test(text)) {
                          if (rule.scope === 'paragraph') {
-                             if (rule.formatting.textAlign) element.style.textAlign = rule.formatting.textAlign;
+                             if (rule.formatting.textAlign) {
+                                element.style.textAlign = rule.formatting.textAlign;
+                                element.style.display = 'block'; // Ensure block display if alignment is applied
+                             }
                              if (rule.formatting.fontSize) element.style.fontSize = `${rule.formatting.fontSize}px`;
                              if (rule.formatting.isBold) element.style.fontWeight = 'bold';
                              if (rule.formatting.isItalic) element.style.fontStyle = 'italic';
@@ -315,6 +319,7 @@ const App: React.FC = () => {
                          else if (rule.scope === 'match') {
                              if (rule.formatting.textAlign) {
                                  element.style.textAlign = rule.formatting.textAlign;
+                                 element.style.display = 'block'; // Ensure block display for match alignment
                                  hasChanges = true;
                              }
                              
@@ -410,7 +415,6 @@ const App: React.FC = () => {
     if (Capacitor.isNativePlatform()) {
       try {
         const base64Data = exportImage.split(',')[1];
-        
         try {
           await Filesystem.writeFile({
             path: fileName,
@@ -425,7 +429,6 @@ const App: React.FC = () => {
             data: base64Data,
             directory: Directory.Cache
           });
-          
           await Share.share({
             title: '保存预览图',
             url: tempFile.uri,
