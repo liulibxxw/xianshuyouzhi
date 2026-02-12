@@ -14,7 +14,7 @@
     "react-dom": "^19.2.1",
     "react": "^19.2.1",
     "@heroicons/react": "^2.2.0",
-    "html-to-image": "^1.11.11",
+    "html2canvas": "^1.4.1",
     "@capacitor/core": "^6.0.0",
     "@capacitor/android": "^6.0.0",
     "@capacitor/filesystem": "^6.0.0",

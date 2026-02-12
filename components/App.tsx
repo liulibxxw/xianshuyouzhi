@@ -20,7 +20,7 @@ import { MobilePresetPanel } from './PresetPanel';
 import ExportModal from './ExportModal';
 import RichTextToolbar from './RichTextToolbar';
 import { ArrowDownTrayIcon, PaintBrushIcon, BookmarkIcon, ArrowsRightLeftIcon, SwatchIcon, SparklesIcon, MagnifyingGlassIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
-import { toPng } from 'html-to-image';
+import html2canvas from 'html2canvas';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
@@ -283,6 +283,7 @@ const App: React.FC = () => {
                          if (structRule.formatting.isBold) col.style.fontWeight = 'bold';
                          if (structRule.formatting.isItalic) col.style.fontStyle = 'italic';
                          if (structRule.formatting.color) col.style.color = structRule.formatting.color;
+                         col.style.margin = '0'; // Explicit 0 margin
                          return col;
                     };
 
@@ -397,14 +398,41 @@ const App: React.FC = () => {
     if (filename) setExportFilename(filename);
     setShowExportModal(true);
     try {
-      await document.fonts.ready; await new Promise(r => setTimeout(r, 500)); 
+      await document.fonts.ready; 
+      await new Promise(r => setTimeout(r, 500)); 
+      
       const fontCss = await getEmbedFontCSS();
-      const exportOptions: any = { cacheBust: true, pixelRatio: 4, backgroundColor: state.backgroundColor, fontEmbedCSS: fontCss };
-      if (state.mode === 'cover') { exportOptions.width = 400; exportOptions.height = 440; exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; }
-      else { exportOptions.width = 400; exportOptions.style = { width: '400px', maxWidth: 'none', transform: 'none', margin: '0' }; }
-      const dataUrl = await toPng(previewRef.current, exportOptions);
+
+      const element = previewRef.current;
+      const targetWidth = 400;
+
+      const canvas = await html2canvas(element, {
+          useCORS: true,
+          scale: 4, 
+          backgroundColor: state.backgroundColor,
+          width: targetWidth,
+          windowWidth: targetWidth,
+          // 强制设置高度，避免长图被截断或产生空白
+          height: element.scrollHeight,
+          windowHeight: element.scrollHeight,
+          scrollX: 0,
+          scrollY: 0,
+          onclone: (clonedDoc) => {
+              const style = clonedDoc.createElement('style');
+              style.innerHTML = fontCss;
+              clonedDoc.head.appendChild(style);
+          }
+      });
+
+      const dataUrl = canvas.toDataURL('image/png');
       setExportImage(dataUrl);
-    } catch (e) { console.error("Export failed:", e); showToast("导出失败", "error"); setShowExportModal(false); } finally { setIsExporting(false); }
+    } catch (e) { 
+      console.error("Export failed:", e); 
+      showToast("导出失败，请重试", "error"); 
+      setShowExportModal(false); 
+    } finally { 
+      setIsExporting(false); 
+    }
   };
 
   const downloadImage = async () => {
