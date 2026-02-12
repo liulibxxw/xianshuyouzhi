@@ -157,19 +157,9 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
 
   const renderContent = () => {
     if (layoutStyle === 'duality') {
-      // 修复长图导出时的布局拉伸：导出长图时移除 flex-1 和固定高度，改用自然流布局
-      const contentContainerClass = (isExporting && isLongText) 
-         ? 'flex flex-col relative px-[10px] py-4 h-auto'
-         : `flex flex-col relative px-[10px] py-4 ${isLongText ? 'min-h-[300px]' : 'flex-1 h-1/2'} overflow-hidden ${minHeightClass}`;
-
-      // 修复 Duality 布局在长图导出时底部被拉伸的问题：使用 conditional mt
-      const dualityFooterClass = (isExporting && isLongText)
-         ? "shrink-0 pt-6 flex justify-between items-end z-10 relative mt-8"
-         : "shrink-0 pt-6 flex justify-between items-end z-10 relative mt-auto";
-
       return (
         <div key="layout-duality" className={`relative z-10 w-full flex flex-col ${flexGrowClass} ${minHeightClass}`}>
-            <div className={contentContainerClass}>
+            <div className={`flex flex-col relative px-[10px] py-4 ${isLongText ? 'min-h-[300px]' : 'flex-1 h-1/2'} overflow-hidden ${minHeightClass}`}>
                 <div className="absolute -left-6 bottom-0 text-[9rem] font-bold opacity-[0.06] pointer-events-none leading-none z-0 font-serif-sc select-none" style={{ color: textColor }}>01</div>
                 <div className="shrink-0 flex justify-between items-start z-10 mb-2 min-h-[50px] gap-2">
                      <div className="flex flex-col items-start gap-1 mt-1 z-10">
@@ -199,13 +189,13 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                  <div className="absolute top-0 left-0 w-full h-[40px] -translate-y-1/2" style={{ background: `linear-gradient(to bottom right, transparent 49%, ${textColor} 49%, ${textColor} 51%, transparent 51%)` }}></div>
                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-2 border border-current shadow-sm" style={{ color: textColor }}><div className="w-2 h-2 rounded-full bg-current" style={{ color: accentColor }}></div></div>
             </div>
-            <div className={contentContainerClass.replace('mb-2', 'mt-2')}>
+            <div className={`flex flex-col relative px-[10px] py-4 ${isLongText ? 'min-h-[300px]' : 'flex-1 h-1/2'} ${minHeightClass}`}>
                 <div className="absolute -right-6 -top-4 text-[9rem] font-bold opacity-[0.06] pointer-events-none leading-none z-0 font-serif-sc select-none" style={{ color: textColor }}>02</div>
                 <div className="absolute left-0 right-0 bottom-0 -z-10" style={{ top: '-20px', background: `linear-gradient(to bottom right, transparent 49.5%, ${accentColor} 49.5%) top center / 100% 40px no-repeat, linear-gradient(${accentColor}, ${accentColor}) top 40px center / 100% calc(100% - 40px) no-repeat` }} />
                 <div className={`relative ${flexGrowClass} cursor-text overflow-hidden pl-0 z-10 ${minHeightClass} mt-2`} onClick={(e) => handleContainerClick(e, secondaryEditableRef)}>
                    <div ref={secondaryEditableRef} contentEditable={!isExporting} onInput={(e) => handleInput(e, true)} onCompositionStart={() => isComposing.current = true} onCompositionEnd={() => isComposing.current = false} suppressContentEditableWarning={true} className={`${getBodyClasses()} w-full px-0 py-1 block outline-none ${isLongText ? 'h-auto' : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`} style={{ color: textColor, fontFamily: FONT_FAMILY }} />
                 </div>
-                <div className={dualityFooterClass}>
+                <div className="shrink-0 pt-6 flex justify-between items-end z-10 relative mt-auto">
                     <div className="relative pr-10 flex flex-col items-start"><div className="relative z-10 flex items-center gap-3"><div className="flex flex-col items-end justify-center relative pr-3 border-r-2 border-current" style={{ color: textColor }}><span className="text-[5px] uppercase tracking-[0.25em] font-mono opacity-50 mb-0.5 block leading-none">Identity</span><div className="relative"><span className="text-xl font-black italic tracking-wide block leading-none font-serif-sc" style={{ color: textColor }}>{author}</span><div className="absolute -top-1 -left-2 w-1.5 h-1.5 border-t border-l border-current opacity-60"></div></div></div><div className="flex items-end gap-[1.5px] h-6 select-none opacity-80" style={{ color: textColor }}>{[2, 1, 3, 1, 4, 1, 2, 1, 3, 2, 1, 4, 1, 2, 3].map((w, i) => (<div key={i} className={`bg-current ${i % 3 === 0 ? 'h-full' : 'h-[70%]'}`} style={{ width: `${w}px` }}></div>))}</div></div></div>
                     <div className="flex flex-col gap-1.5 opacity-60 select-none font-mono items-end text-right" style={{ color: textColor }}><div className="flex items-center gap-1"><span className="text-[7px] tracking-widest">SYS.READY</span><div className="w-1.5 h-1.5 bg-current animate-pulse"></div></div><div className="flex flex-col text-[6px] leading-tight opacity-70"><span>/// {new Date().getFullYear()}.{new Date().getMonth() + 1}</span><span>LOC: 32.45.11 N</span></div></div>
                 </div>
@@ -215,10 +205,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     }
 
     if (layoutStyle === 'split') {
-      const footerClass = (isExporting && isLongText) 
-          ? "pt-2 border-t border-current/30 flex flex-col items-center opacity-80 shrink-0 flex-none mt-8" // 使用 mt-8 代替 mt-auto
-          : "pt-2 border-t border-current/30 flex flex-col items-center opacity-80 shrink-0 flex-none mt-auto";
-
       return (
         <div key="layout-split" className={`relative z-10 p-8 flex flex-col ${flexGrowClass}`}>
           <div className="flex flex-col items-center text-center mt-2 mb-2 relative shrink-0 flex-none overflow-visible">
@@ -231,7 +217,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
              <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-[4rem] opacity-20 -z-10" style={{ backgroundColor: accentColor }}></div>
              <div ref={editableRef} contentEditable={!isExporting} onInput={(e) => handleInput(e)} onCompositionStart={() => isComposing.current = true} onCompositionEnd={() => isComposing.current = false} suppressContentEditableWarning={true} className={`${getBodyClasses()} px-2 w-full outline-none ${isLongText ? 'h-auto' : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`} style={{ color: textColor, fontFamily: FONT_FAMILY }} />
           </div>
-          <div className={footerClass} style={{ color: textColor }}>
+          <div className="pt-2 border-t border-current/30 flex flex-col items-center opacity-80 shrink-0 flex-none mt-auto" style={{ color: textColor }}>
              <div className="flex items-center gap-4 mb-2"><div className="text-[8px] uppercase tracking-[0.2em]">SCREENPLAY</div><div className="text-sm italic font-serif-sc">{author}</div></div>
              <div className="w-full flex justify-between items-center text-[8px] tracking-widest opacity-60 font-mono">
                 <div className="flex items-center gap-2">{displayCategories.map((cat, idx) => (<div key={idx} className="px-2 py-[2px] border border-current rounded-sm relative" style={{ borderColor: textColor }}><div className="absolute top-[-1px] right-[-1px] w-[3px] h-[3px] bg-white border-b border-l border-current opacity-100" style={{ borderColor: textColor }}></div><span className="uppercase font-semibold">{cat}</span></div>))}</div>
@@ -242,13 +228,9 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
       );
     }
 
-    // Default Fallback (Minimal)
-    const layoutContainerClass = (isExporting && isLongText)
-        ? "relative z-10 p-6 w-full flex flex-col justify-start gap-8 h-auto" // 使用 gap 和 justify-start 防止拉伸
-        : `relative z-10 p-6 w-full flex flex-col justify-between ${isLongText ? 'flex-auto' : 'h-full overflow-hidden'}`;
-
+    // Default Fallback (Minimal) to ensure something renders if style is unknown
     return (
-        <div key="layout-minimal" className={layoutContainerClass}>
+        <div key="layout-minimal" className={`relative z-10 p-6 w-full flex flex-col justify-between ${isLongText ? 'flex-auto' : 'h-full overflow-hidden'}`}>
           <div className={`${flexGrowClass} flex flex-col ${minHeightClass}`}>
               <div className="flex justify-between items-end border-b pb-2 mb-3 opacity-80 shrink-0" style={{ borderColor: `${textColor}40` }}>
                 <div className="flex flex-col gap-1">
@@ -281,16 +263,9 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
         </div>
     );
   };
-  
-  // 修复根容器：导出长图时移除 min-h 限制，防止因 WebView 视口高度误判导致的过度拉伸
-  const rootClass = `relative shadow-2xl antialiased overflow-hidden w-[400px] shrink-0 ${
-      isLongText 
-        ? (isExporting ? 'h-auto' : 'h-auto min-h-[600px] md:min-h-[712px]') 
-        : 'h-[500px]'
-  }`;
 
   return (
-    <div ref={ref} className={rootClass} style={renderingIsolation}>
+    <div ref={ref} className={`relative shadow-2xl antialiased overflow-hidden w-[400px] shrink-0 ${isLongText ? 'h-auto min-h-[600px] md:min-h-[712px]' : 'h-[440px]'}`} style={renderingIsolation}>
       <div className="absolute inset-0 z-0" style={{ background: `radial-gradient(circle at 10% 20%, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 80%)`, opacity: 0.6 }} />
       {layoutStyle !== 'duality' && ( <div className="absolute inset-0 pointer-events-none z-0" style={{ backgroundImage: `linear-gradient(${textColor} 1px, transparent 1px), linear-gradient(90deg, ${textColor} 1px, transparent 1px)`, backgroundSize: '40px 40px', opacity: 0.05 }} /> )}
       {renderContent()}

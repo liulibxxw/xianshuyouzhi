@@ -14,11 +14,11 @@ import {
   PastelColor,
   INITIAL_CATEGORY
 } from '../constants';
-import CoverPreview from './components/CoverPreview';
-import EditorControls, { MobileDraftsStrip, MobileStylePanel, ContentEditorModal, MobileExportPanel, MobileSearchPanel } from './components/EditorControls';
-import { MobilePresetPanel } from './components/PresetPanel';
-import ExportModal from './components/ExportModal';
-import RichTextToolbar from './components/RichTextToolbar';
+import CoverPreview from './CoverPreview';
+import EditorControls, { MobileDraftsStrip, MobileStylePanel, ContentEditorModal, MobileExportPanel, MobileSearchPanel } from './EditorControls';
+import { MobilePresetPanel } from './PresetPanel';
+import ExportModal from './ExportModal';
+import RichTextToolbar from './RichTextToolbar';
 import { ArrowDownTrayIcon, PaintBrushIcon, BookmarkIcon, ArrowsRightLeftIcon, SwatchIcon, SparklesIcon, MagnifyingGlassIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import { toPng } from 'html-to-image';
 import { Capacitor } from '@capacitor/core';
@@ -248,7 +248,8 @@ const App: React.FC = () => {
             if (node.nodeType === Node.ELEMENT_NODE) {
                 element = node as HTMLElement;
             } else if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
-                element = document.createElement('div');
+                // IMPORTANT: Changed from 'div' to 'span' to prevent forcing block display and empty lines
+                element = document.createElement('span'); 
                 element.textContent = node.textContent;
                 isTextNodeReplacement = true;
             } else {
@@ -258,6 +259,7 @@ const App: React.FC = () => {
             const text = element.innerText || element.textContent || "";
             if (!text.trim()) return;
 
+            // 1. Check for Structure Rules (Priority) - Independent of regex
             const structRule = rules.find(r => r.isActive && r.structure === 'multi-align-row');
             if (structRule) {
                 const sep = structRule.separator || '|';
@@ -267,6 +269,7 @@ const App: React.FC = () => {
                     container.style.display = 'grid';
                     container.style.gridTemplateColumns = '1fr 1fr 1fr';
                     container.style.width = '100%';
+                    container.style.margin = '0'; // Ensure no extra margin
                     
                     const firstSepIndex = text.indexOf(sep);
                     const leftPart = text.substring(0, firstSepIndex).trim();
@@ -292,6 +295,7 @@ const App: React.FC = () => {
                 }
             }
 
+            // 2. Normal Rules (Paragraph & Match)
             let hasChanges = false;
             let currentHTML = element.innerHTML;
             
@@ -301,7 +305,10 @@ const App: React.FC = () => {
                     const regex = new RegExp(rule.pattern, 'gi');
                     if (regex.test(text)) {
                          if (rule.scope === 'paragraph') {
-                             if (rule.formatting.textAlign) element.style.textAlign = rule.formatting.textAlign;
+                             if (rule.formatting.textAlign) {
+                                element.style.textAlign = rule.formatting.textAlign;
+                                element.style.display = 'block'; // Ensure block display if alignment is applied
+                             }
                              if (rule.formatting.fontSize) element.style.fontSize = `${rule.formatting.fontSize}px`;
                              if (rule.formatting.isBold) element.style.fontWeight = 'bold';
                              if (rule.formatting.isItalic) element.style.fontStyle = 'italic';
@@ -311,6 +318,7 @@ const App: React.FC = () => {
                          else if (rule.scope === 'match') {
                              if (rule.formatting.textAlign) {
                                  element.style.textAlign = rule.formatting.textAlign;
+                                 element.style.display = 'block'; // Ensure block display for match alignment
                                  hasChanges = true;
                              }
                              
@@ -392,17 +400,8 @@ const App: React.FC = () => {
       await document.fonts.ready; await new Promise(r => setTimeout(r, 500)); 
       const fontCss = await getEmbedFontCSS();
       const exportOptions: any = { cacheBust: true, pixelRatio: 4, backgroundColor: state.backgroundColor, fontEmbedCSS: fontCss };
-      
-      if (state.mode === 'cover') { 
-          exportOptions.width = 400; 
-          exportOptions.height = 440; 
-          exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; 
-      } else { 
-          exportOptions.width = 400; 
-          // 修复：强制设置 height: auto，防止 WebView 计算出错误的容器高度导致 justify-between 拉伸布局
-          exportOptions.style = { width: '400px', height: 'auto', maxWidth: 'none', transform: 'none', margin: '0' }; 
-      }
-
+      if (state.mode === 'cover') { exportOptions.width = 400; exportOptions.height = 440; exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; }
+      else { exportOptions.width = 400; exportOptions.style = { width: '400px', maxWidth: 'none', transform: 'none', margin: '0' }; }
       const dataUrl = await toPng(previewRef.current, exportOptions);
       setExportImage(dataUrl);
     } catch (e) { console.error("Export failed:", e); showToast("导出失败", "error"); setShowExportModal(false); } finally { setIsExporting(false); }
@@ -415,7 +414,6 @@ const App: React.FC = () => {
     if (Capacitor.isNativePlatform()) {
       try {
         const base64Data = exportImage.split(',')[1];
-        
         try {
           await Filesystem.writeFile({
             path: fileName,
@@ -430,7 +428,6 @@ const App: React.FC = () => {
             data: base64Data,
             directory: Directory.Cache
           });
-          
           await Share.share({
             title: '保存预览图',
             url: tempFile.uri,

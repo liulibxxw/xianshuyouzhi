@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { CoverState, LayoutStyle, ContentPreset, EditorTab, AdvancedPreset, TransformationRule } from '../types';
 import { PALETTE, TEXT_PALETTE } from '../constants';
@@ -113,7 +114,8 @@ export const MobileSearchPanel: React.FC<EditorControlsProps> = ({ state, onChan
     const nodes = Array.from(tempDiv.childNodes);
     const target = nodes[index];
     if (target) {
-        const rowHtml = `<div class="multi-align-row" style="display: grid; grid-template-columns: 1fr 1fr 1fr; width: 100%; gap: 4px; margin: 4px 0;">
+        // Reduced margin to 1px/0 to avoid excessive empty space on mobile
+        const rowHtml = `<div class="multi-align-row" style="display: grid; grid-template-columns: 1fr 1fr 1fr; width: 100%; gap: 4px; margin: 1px 0;">
             <div style="text-align: left;">${rowEditData.left || '&nbsp;'}</div>
             <div style="text-align: center;">${rowEditData.center || '&nbsp;'}</div>
             <div style="text-align: right;">${rowEditData.right || '&nbsp;'}</div>
