@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, forwardRef, useRef } from 'react';
 import { CoverState } from '../types';
 
@@ -18,8 +17,8 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     backgroundColor, 
     accentColor, 
     textColor, 
-    titleFont = 'sans',
-    bodyFont = 'sans',
+    titleFont,
+    bodyFont,
     layoutStyle,
     mode,
     bodyTextSize = 'text-[13px]',

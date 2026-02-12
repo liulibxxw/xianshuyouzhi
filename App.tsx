@@ -21,6 +21,8 @@ import ExportModal from './components/ExportModal';
 import RichTextToolbar from './components/RichTextToolbar';
 import { ArrowDownTrayIcon, PaintBrushIcon, BookmarkIcon, ArrowsRightLeftIcon, SwatchIcon, SparklesIcon, MagnifyingGlassIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import { toPng } from 'html-to-image';
+// @ts-ignore
+import domtoimage from 'dom-to-image-more';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
@@ -248,8 +250,7 @@ const App: React.FC = () => {
             if (node.nodeType === Node.ELEMENT_NODE) {
                 element = node as HTMLElement;
             } else if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
-                // IMPORTANT: Changed from 'div' to 'span' to prevent forcing block display and empty lines
-                element = document.createElement('span'); 
+                element = document.createElement('div');
                 element.textContent = node.textContent;
                 isTextNodeReplacement = true;
             } else {
@@ -259,7 +260,6 @@ const App: React.FC = () => {
             const text = element.innerText || element.textContent || "";
             if (!text.trim()) return;
 
-            // 1. Check for Structure Rules (Priority) - Independent of regex
             const structRule = rules.find(r => r.isActive && r.structure === 'multi-align-row');
             if (structRule) {
                 const sep = structRule.separator || '|';
@@ -269,7 +269,6 @@ const App: React.FC = () => {
                     container.style.display = 'grid';
                     container.style.gridTemplateColumns = '1fr 1fr 1fr';
                     container.style.width = '100%';
-                    container.style.margin = '0'; // Ensure no extra margin
                     
                     const firstSepIndex = text.indexOf(sep);
                     const leftPart = text.substring(0, firstSepIndex).trim();
@@ -283,7 +282,6 @@ const App: React.FC = () => {
                          if (structRule.formatting.isBold) col.style.fontWeight = 'bold';
                          if (structRule.formatting.isItalic) col.style.fontStyle = 'italic';
                          if (structRule.formatting.color) col.style.color = structRule.formatting.color;
-                         col.style.margin = '0'; // Explicit 0 margin
                          return col;
                     };
 
@@ -296,7 +294,6 @@ const App: React.FC = () => {
                 }
             }
 
-            // 2. Normal Rules (Paragraph & Match)
             let hasChanges = false;
             let currentHTML = element.innerHTML;
             
@@ -306,10 +303,7 @@ const App: React.FC = () => {
                     const regex = new RegExp(rule.pattern, 'gi');
                     if (regex.test(text)) {
                          if (rule.scope === 'paragraph') {
-                             if (rule.formatting.textAlign) {
-                                element.style.textAlign = rule.formatting.textAlign;
-                                element.style.display = 'block'; // Ensure block display if alignment is applied
-                             }
+                             if (rule.formatting.textAlign) element.style.textAlign = rule.formatting.textAlign;
                              if (rule.formatting.fontSize) element.style.fontSize = `${rule.formatting.fontSize}px`;
                              if (rule.formatting.isBold) element.style.fontWeight = 'bold';
                              if (rule.formatting.isItalic) element.style.fontStyle = 'italic';
@@ -319,7 +313,6 @@ const App: React.FC = () => {
                          else if (rule.scope === 'match') {
                              if (rule.formatting.textAlign) {
                                  element.style.textAlign = rule.formatting.textAlign;
-                                 element.style.display = 'block'; // Ensure block display for match alignment
                                  hasChanges = true;
                              }
                              
@@ -397,15 +390,57 @@ const App: React.FC = () => {
     setExportImage(null); 
     if (filename) setExportFilename(filename);
     setShowExportModal(true);
+    
     try {
-      await document.fonts.ready; await new Promise(r => setTimeout(r, 500)); 
-      const fontCss = await getEmbedFontCSS();
-      const exportOptions: any = { cacheBust: true, pixelRatio: 4, backgroundColor: state.backgroundColor, fontEmbedCSS: fontCss };
-      if (state.mode === 'cover') { exportOptions.width = 400; exportOptions.height = 440; exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; }
-      else { exportOptions.width = 400; exportOptions.style = { width: '400px', maxWidth: 'none', transform: 'none', margin: '0' }; }
-      const dataUrl = await toPng(previewRef.current, exportOptions);
+      await document.fonts.ready; 
+      await new Promise(r => setTimeout(r, 500));
+      
+      let dataUrl = '';
+      
+      if (Capacitor.isNativePlatform()) {
+          // Mobile Export using dom-to-image-more to avoid blank lines
+          const element = previewRef.current;
+          // Use a moderate scale for mobile to avoid memory/texture limits
+          const scale = 2; 
+          
+          dataUrl = await domtoimage.toPng(element, {
+              width: element.clientWidth * scale,
+              height: element.clientHeight * scale,
+              style: {
+                  transform: `scale(${scale})`,
+                  transformOrigin: 'top left',
+                  width: `${element.clientWidth}px`,
+                  height: `${element.clientHeight}px`,
+                  background: state.backgroundColor
+              },
+              quality: 1
+          });
+          
+      } else {
+          // Web Export using html-to-image (better font support)
+          const fontCss = await getEmbedFontCSS();
+          const exportOptions: any = { cacheBust: true, pixelRatio: 4, backgroundColor: state.backgroundColor, fontEmbedCSS: fontCss };
+          
+          if (state.mode === 'cover') { 
+              exportOptions.width = 400; 
+              exportOptions.height = 440; 
+              exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; 
+          } else { 
+              exportOptions.width = 400; 
+              exportOptions.style = { width: '400px', maxWidth: 'none', transform: 'none', margin: '0' }; 
+          }
+          
+          dataUrl = await toPng(previewRef.current, exportOptions);
+      }
+      
       setExportImage(dataUrl);
-    } catch (e) { console.error("Export failed:", e); showToast("导出失败", "error"); setShowExportModal(false); } finally { setIsExporting(false); }
+    } catch (e) { 
+      console.error("Export failed:", e); 
+      showToast("导出失败，请重试", "error"); 
+      setShowExportModal(false); 
+    } finally { 
+      setIsExporting(false); 
+    }
   };
 
   const downloadImage = async () => {
@@ -429,10 +464,7 @@ const App: React.FC = () => {
             data: base64Data,
             directory: Directory.Cache
           });
-          await Share.share({
-            title: '保存预览图',
-            url: tempFile.uri,
-          });
+          await Share.share({ title: '保存预览图', url: tempFile.uri });
         }
       } catch (error) {
         console.error('Native download error:', error);

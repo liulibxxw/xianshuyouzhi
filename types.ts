@@ -19,8 +19,6 @@ export interface CoverState {
   bodyTextAlign: string;
   isBodyBold: boolean;
   isBodyItalic: boolean;
-  titleFont?: string;
-  bodyFont?: string;
 }
 
 export interface ContentPreset {
