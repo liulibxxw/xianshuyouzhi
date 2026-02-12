@@ -259,6 +259,7 @@ const App: React.FC = () => {
             const text = element.innerText || element.textContent || "";
             if (!text.trim()) return;
 
+            // 1. Check for Structure Rules (Priority) - Independent of regex
             const structRule = rules.find(r => r.isActive && r.structure === 'multi-align-row');
             if (structRule) {
                 const sep = structRule.separator || '|';
@@ -293,6 +294,7 @@ const App: React.FC = () => {
                 }
             }
 
+            // 2. Normal Rules (Paragraph & Match)
             let hasChanges = false;
             let currentHTML = element.innerHTML;
             
@@ -389,18 +391,29 @@ const App: React.FC = () => {
     setExportImage(null); 
     if (filename) setExportFilename(filename);
     setShowExportModal(true);
+    
+    // 核心修改：检测是否为 Native 环境
+    if (Capacitor.isNativePlatform()) {
+        try {
+            await document.fonts.ready;
+            // 使用新写的原生绘图逻辑
+            const dataUrl = await generateNativeCover(state);
+            setExportImage(dataUrl);
+            setIsExporting(false);
+            return;
+        } catch(e) {
+            console.error("Native export failed, falling back...", e);
+        }
+    }
+
+    // Web环境继续使用原逻辑 (html-to-image)
     try {
-      let dataUrl: string;
-      if (Capacitor.isNativePlatform()) {
-          dataUrl = await generateNativeCover(state);
-      } else {
-          await document.fonts.ready; await new Promise(r => setTimeout(r, 500)); 
-          const fontCss = await getEmbedFontCSS();
-          const exportOptions: any = { cacheBust: true, pixelRatio: 4, backgroundColor: state.backgroundColor, fontEmbedCSS: fontCss };
-          if (state.mode === 'cover') { exportOptions.width = 400; exportOptions.height = 440; exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; }
-          else { exportOptions.width = 400; exportOptions.style = { width: '400px', maxWidth: 'none', transform: 'none', margin: '0' }; }
-          dataUrl = await toPng(previewRef.current, exportOptions);
-      }
+      await document.fonts.ready; await new Promise(r => setTimeout(r, 500)); 
+      const fontCss = await getEmbedFontCSS();
+      const exportOptions: any = { cacheBust: true, pixelRatio: 4, backgroundColor: state.backgroundColor, fontEmbedCSS: fontCss };
+      if (state.mode === 'cover') { exportOptions.width = 400; exportOptions.height = 440; exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; }
+      else { exportOptions.width = 400; exportOptions.style = { width: '400px', maxWidth: 'none', transform: 'none', margin: '0' }; }
+      const dataUrl = await toPng(previewRef.current, exportOptions);
       setExportImage(dataUrl);
     } catch (e) { console.error("Export failed:", e); showToast("导出失败", "error"); setShowExportModal(false); } finally { setIsExporting(false); }
   };

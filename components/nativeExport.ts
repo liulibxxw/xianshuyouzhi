@@ -68,8 +68,6 @@ const wrapText = (
   const paragraphs = text.split('\n');
   const lines: string[] = [];
   // 获取当前字体的大致行高（基于M的宽度估算或固定倍率）
-  const metrics = ctx.measureText('M');
-  // 简易行高计算：font size * 1.6
   const fontSizeMatch = ctx.font.match(/(\d+)px/);
   const fontSize = fontSizeMatch ? parseInt(fontSizeMatch[1]) : 13 * SCALE;
   const lineHeight = fontSize * 1.6;
