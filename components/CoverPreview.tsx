@@ -265,7 +265,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   };
 
   return (
-    <div ref={ref} className={`relative shadow-2xl antialiased overflow-hidden w-[400px] shrink-0 ${isLongText ? 'h-auto min-h-[600px] md:min-h-[712px]' : 'h-[440px]'}`} style={renderingIsolation}>
+    <div ref={ref} className={`relative shadow-2xl antialiased overflow-hidden w-[400px] shrink-0 ${isLongText ? (isExporting ? 'h-auto' : 'h-auto min-h-[600px] md:min-h-[712px]') : 'h-[440px]'}`} style={renderingIsolation}>
       <div className="absolute inset-0 z-0" style={{ background: `radial-gradient(circle at 10% 20%, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 80%)`, opacity: 0.6 }} />
       {layoutStyle !== 'duality' && ( <div className="absolute inset-0 pointer-events-none z-0" style={{ backgroundImage: `linear-gradient(${textColor} 1px, transparent 1px), linear-gradient(90deg, ${textColor} 1px, transparent 1px)`, backgroundSize: '40px 40px', opacity: 0.05 }} /> )}
       {renderContent()}
