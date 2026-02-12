@@ -43,50 +43,72 @@ jobs:
           ICON_PATH=$(find . -name "icon-only.png" | head -n 1)
           
           if [ -n "$ICON_PATH" ]; then
-            echo "Icon found at $ICON_PATH. Generating density-specific icons..."
+            echo "Icon found at $ICON_PATH. Generating Android Adaptive Icons..."
             RES_PATH="android/app/src/main/res"
             
-            # 定义密度和对应的尺寸
-            # mdpi: 48x48
-            # hdpi: 72x72
-            # xhdpi: 96x96
-            # xxhdpi: 144x144
-            # xxxhdpi: 192x192
+            # 1. 清理默认的 Adaptive Icons 配置和残留资源，防止冲突
+            rm -rf "$RES_PATH/mipmap-anydpi-v26"
+            rm -rf "$RES_PATH/drawable-v24"
+            find "$RES_PATH" -name "ic_launcher_foreground.*" -delete
+            find "$RES_PATH" -name "ic_launcher_background.*" -delete
             
-            # 使用 ImageMagick 调整大小，确保侧边栏等组件能加载正确尺寸的图标
+            # 2. 创建 Adaptive Icon 目录
+            mkdir -p "$RES_PATH/mipmap-anydpi-v26"
             
+            # 3. 生成 Adaptive Icon XML 定义 (前景图 + 背景色)
+            echo '<?xml version="1.0" encoding="utf-8"?>
+            <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+                <background android:drawable="@color/ic_launcher_background"/>
+                <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+            </adaptive-icon>' > "$RES_PATH/mipmap-anydpi-v26/ic_launcher.xml"
+            
+            cp "$RES_PATH/mipmap-anydpi-v26/ic_launcher.xml" "$RES_PATH/mipmap-anydpi-v26/ic_launcher_round.xml"
+            
+            # 4. 定义背景色 (白色，避免透明背景变黑)
+            mkdir -p "$RES_PATH/values"
+            echo '<?xml version="1.0" encoding="utf-8"?>
+            <resources>
+                <color name="ic_launcher_background">#FFFFFF</color>
+            </resources>' > "$RES_PATH/values/ic_launcher_background.xml"
+            
+            # 5. 生成各个密度的图标
+            # 既生成 legacy 的 ic_launcher.png (用于旧系统)
+            # 也生成 adaptive 的 ic_launcher_foreground.png (用于新系统和侧边栏)
+            # 注意：Adaptive Foreground 需要更大的尺寸 (108dp) 以支持视差和遮罩
+            
+            # MDPI (48dp legacy / 108px adaptive)
             mkdir -p "$RES_PATH/mipmap-mdpi"
             convert "$ICON_PATH" -resize 48x48 "$RES_PATH/mipmap-mdpi/ic_launcher.png"
             convert "$ICON_PATH" -resize 48x48 "$RES_PATH/mipmap-mdpi/ic_launcher_round.png"
+            convert "$ICON_PATH" -resize 108x108 "$RES_PATH/mipmap-mdpi/ic_launcher_foreground.png"
             
+            # HDPI (72dp legacy / 162px adaptive)
             mkdir -p "$RES_PATH/mipmap-hdpi"
             convert "$ICON_PATH" -resize 72x72 "$RES_PATH/mipmap-hdpi/ic_launcher.png"
             convert "$ICON_PATH" -resize 72x72 "$RES_PATH/mipmap-hdpi/ic_launcher_round.png"
+            convert "$ICON_PATH" -resize 162x162 "$RES_PATH/mipmap-hdpi/ic_launcher_foreground.png"
             
+            # XHDPI (96dp legacy / 216px adaptive)
             mkdir -p "$RES_PATH/mipmap-xhdpi"
             convert "$ICON_PATH" -resize 96x96 "$RES_PATH/mipmap-xhdpi/ic_launcher.png"
             convert "$ICON_PATH" -resize 96x96 "$RES_PATH/mipmap-xhdpi/ic_launcher_round.png"
+            convert "$ICON_PATH" -resize 216x216 "$RES_PATH/mipmap-xhdpi/ic_launcher_foreground.png"
             
+            # XXHDPI (144dp legacy / 324px adaptive)
             mkdir -p "$RES_PATH/mipmap-xxhdpi"
             convert "$ICON_PATH" -resize 144x144 "$RES_PATH/mipmap-xxhdpi/ic_launcher.png"
             convert "$ICON_PATH" -resize 144x144 "$RES_PATH/mipmap-xxhdpi/ic_launcher_round.png"
+            convert "$ICON_PATH" -resize 324x324 "$RES_PATH/mipmap-xxhdpi/ic_launcher_foreground.png"
             
+            # XXXHDPI (192dp legacy / 432px adaptive)
             mkdir -p "$RES_PATH/mipmap-xxxhdpi"
             convert "$ICON_PATH" -resize 192x192 "$RES_PATH/mipmap-xxxhdpi/ic_launcher.png"
             convert "$ICON_PATH" -resize 192x192 "$RES_PATH/mipmap-xxxhdpi/ic_launcher_round.png"
+            convert "$ICON_PATH" -resize 432x432 "$RES_PATH/mipmap-xxxhdpi/ic_launcher_foreground.png"
 
-            # 移除自适应图标定义 (Adaptive Icons) 及其所有干扰项
-            # 删除此目录并清理默认资源，强制系统回退到常规的 ic_launcher.png
-            rm -rf "$RES_PATH/mipmap-anydpi-v26"
-            
-            # 清理可能存在的默认 foreground 和 background 资源以及 webp 格式图标
-            find "$RES_PATH" -name "ic_launcher_foreground.*" -delete
-            find "$RES_PATH" -name "ic_launcher_background.*" -delete
-            find "$RES_PATH" -name "ic_launcher*.webp" -delete
-            
-            echo "Icon generation complete."
+            echo "Adaptive icon generation complete."
           else
-            echo "Error: icon-only.png not found in repository! Build cannot proceed without an icon."
+            echo "Error: icon-only.png not found in repository!"
             exit 1
           fi
           
