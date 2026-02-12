@@ -6,6 +6,9 @@ const BASE_WIDTH = 400;
 const CANVAS_WIDTH = BASE_WIDTH * SCALE;
 const PADDING = 24 * SCALE;
 
+// 字体定义
+const FONT_FAMILY = '"Noto Serif SC", serif';
+
 /**
  * 核心修复：基于 DOM 遍历的文本标准化
  * 彻底解决 Android 端因 innerText 或正则替换导致的"自动插入空行"问题
@@ -13,24 +16,18 @@ const PADDING = 24 * SCALE;
 const normalizeText = (html: string): string => {
   if (!html) return '';
   
-  // 创建离屏 DOM 容器
   const temp = document.createElement('div');
   temp.innerHTML = html;
 
   let text = '';
-  
-  // 定义块级元素，这些元素结束时应当换行
   const blockTags = new Set([
     'div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
     'li', 'ul', 'ol', 'tr', 'blockquote', 'article', 'section', 'header', 'footer'
   ]);
 
-  // 深度优先遍历 DOM 树
   const walk = (node: Node) => {
     if (node.nodeType === Node.TEXT_NODE) {
-      // 获取文本内容，保留必要的空格（contentEditable通常不会在非空文本节点内包含大量格式化换行）
       const content = node.textContent || '';
-      // 简单处理：将连续的换行/制表符转换为空格，模拟浏览器渲染行为，避免源码格式影响
       text += content.replace(/[\n\t\r]+/g, ' '); 
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       const el = node as HTMLElement;
@@ -39,11 +36,7 @@ const normalizeText = (html: string): string => {
       if (tagName === 'br') {
         text += '\n';
       } else {
-        // 递归处理子节点
         node.childNodes.forEach(walk);
-        
-        // 块级元素结束时，如果缓冲区末尾没有换行，则追加一个换行
-        // 这解决了 <div>A</div><div>B</div> 变成 "A\nB" 而不是 "A\n\nB"
         if (blockTags.has(tagName)) {
            if (text.length > 0 && !text.endsWith('\n')) {
              text += '\n';
@@ -54,33 +47,29 @@ const normalizeText = (html: string): string => {
   };
 
   walk(temp);
-
-  // 最终清洗：
-  // 1. 替换连续3个以上换行符为2个（允许最大1个空行段落，防止无限空行）
-  // 2. 去除首尾空白
   return text.replace(/\n{3,}/g, '\n\n').trim();
 };
 
-// Helper: Wrap text
-// 使用 Array.from 支持 Emoji 等宽字符
 const wrapText = (
   ctx: CanvasRenderingContext2D,
   text: string,
-  maxWidth: number,
-  lineHeight: number
+  maxWidth: number
 ): { lines: string[], height: number } => {
   const paragraphs = text.split('\n');
   const lines: string[] = [];
+  // 获取当前字体的大致行高（基于M的宽度估算或固定倍率）
+  const metrics = ctx.measureText('M');
+  // 简易行高计算：font size * 1.6
+  const fontSizeMatch = ctx.font.match(/(\d+)px/);
+  const fontSize = fontSizeMatch ? parseInt(fontSizeMatch[1]) : 13 * SCALE;
+  const lineHeight = fontSize * 1.6;
 
   paragraphs.forEach(paragraph => {
-    // 如果段落为空字符串，说明是空行，直接保留（会渲染出高度）
     if (paragraph === '') {
         lines.push('');
         return;
     }
-
     let line = '';
-    // 使用 Array.from 正确处理 Unicode 字符 (Emoji)
     const chars = Array.from(paragraph);
     
     for (let i = 0; i < chars.length; i++) {
@@ -103,14 +92,15 @@ const wrapText = (
   };
 };
 
-// Helper: Draw Noise
 const drawNoise = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
     const imageData = ctx.createImageData(width, height);
     const buffer32 = new Uint32Array(imageData.data.buffer);
     const len = buffer32.length;
     for (let i = 0; i < len; i++) {
-        if (Math.random() < 0.05) {
-            buffer32[i] = 0x10000000; // Minimal alpha black noise
+        // Reduced probability and alpha for subtler noise matching web preview
+        if (Math.random() < 0.3) {
+             // Little Endian: AABBGGRR. 0x05000000 is Alpha=5 (approx 2%), Black
+             buffer32[i] = 0x05000000; 
         }
     }
     ctx.putImageData(imageData, 0, 0);
@@ -129,168 +119,191 @@ export const generateNativeCover = async (state: CoverState): Promise<string> =>
   const author = state.author || '';
   const categories = state.category ? state.category.split(/[、, ]/).filter(Boolean) : [];
   
-  // 使用新的标准化函数
   const bodyText = normalizeText(bodyTextRaw);
   const bodyText2 = normalizeText(bodyText2Raw);
 
-  // 2. Setup Fonts
-  // 使用 Canvas 能够识别的通用字体回退，确保即使 WebFont 加载失败也能显示
-  const titleFont = `900 ${36 * SCALE}px "Noto Serif SC", serif`;
-  const subtitleFont = `700 ${14 * SCALE}px "Noto Serif SC", serif`;
-  const bodyFont = `500 ${13 * SCALE}px "Noto Serif SC", serif`;
-  const metaFont = `bold ${10 * SCALE}px monospace`;
-  const lineHeight = 1.6 * 13 * SCALE;
+  // Stats for Minimal Layout
+  const readingLength = bodyText.replace(/\s/g, '').length;
+  const readingTime = Math.max(1, Math.ceil(readingLength / 400));
 
-  // 3. Calculate Geometry based on Layout
-  let canvasHeight = state.mode === 'cover' ? 500 * SCALE : 800 * SCALE; // Default start
+  // 2. Setup Fonts
+  const getTitleFont = (text: string, baseSize: number) => {
+      let size = baseSize;
+      if (text.length > 30) size *= 0.4;
+      else if (text.length > 20) size *= 0.5;
+      else if (text.length > 14) size *= 0.6;
+      else if (text.length > 10) size *= 0.75;
+      else if (text.length > 8) size *= 0.85;
+      return `900 ${size}px ${FONT_FAMILY}`;
+  };
+
+  const titleSizeBase = 36 * SCALE;
+  const subtitleFont = `700 ${14 * SCALE}px ${FONT_FAMILY}`;
+  // Extract font size from state like "text-[13px]"
+  const sizeMatch = state.bodyTextSize?.match(/(\d+)px/);
+  const bodyFontSize = (sizeMatch ? parseInt(sizeMatch[1]) : 13) * SCALE;
+  const bodyFont = `500 ${bodyFontSize}px ${FONT_FAMILY}`;
+  const monoFont = `bold ${10 * SCALE}px monospace`;
+  const lineHeight = bodyFontSize * 1.5;
+
+  // 3. Calculate Geometry
+  let canvasHeight = state.mode === 'cover' ? (state.layoutStyle === 'minimal' ? 440 : 500) * SCALE : 800 * SCALE; 
+  if (state.mode === 'cover' && state.layoutStyle === 'minimal') canvasHeight = 440 * SCALE; // Force 440 for minimal cover
+  
   const contentWidth = CANVAS_WIDTH - (PADDING * 2);
 
-  // Simulating measurement to determine height for long-text mode
   ctx.font = bodyFont;
-  const wrappedBody1 = wrapText(ctx, bodyText, contentWidth, lineHeight);
-  const wrappedBody2 = wrapText(ctx, bodyText2, contentWidth, lineHeight);
+  const wrappedBody1 = wrapText(ctx, bodyText, contentWidth);
+  const wrappedBody2 = wrapText(ctx, bodyText2, contentWidth);
 
   if (state.mode === 'long-text') {
-      let contentHeight = 0;
-      // Header Area Estimate
-      contentHeight += 150 * SCALE; 
-      // Body 1
-      contentHeight += wrappedBody1.height + (40 * SCALE);
-      
-      if (state.layoutStyle === 'duality') {
-          contentHeight += wrappedBody2.height + (100 * SCALE);
-      }
-      
-      // Footer
-      contentHeight += 100 * SCALE;
-      
+      let contentHeight = 200 * SCALE; // Header buffer
+      contentHeight += wrappedBody1.height + (100 * SCALE);
+      if (state.layoutStyle === 'duality') contentHeight += wrappedBody2.height + (200 * SCALE);
+      contentHeight += 150 * SCALE; // Footer buffer
       canvasHeight = Math.max(canvasHeight, contentHeight);
-  } else {
-     // Fixed heights for cover mode
-     canvasHeight = (state.layoutStyle === 'duality' || state.layoutStyle === 'split') ? 500 * SCALE : 440 * SCALE;
   }
 
   // 4. Initialize Canvas
   canvas.width = CANVAS_WIDTH;
   canvas.height = canvasHeight;
   
-  // Fill Background
+  // --- BACKGROUND RENDERING ---
+  // A. Solid Color
   ctx.fillStyle = state.backgroundColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Draw Subtle Grid/Noise
+  // B. White Radial Gradient Overlay (Fixes "greyish" issue)
+  const gradient = ctx.createRadialGradient(
+    canvas.width * 0.1, canvas.height * 0.2, 0,
+    canvas.width * 0.1, canvas.height * 0.2, canvas.width * 0.8
+  );
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
+  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // C. Grid Pattern (except Duality)
   if (state.layoutStyle !== 'duality') {
+      ctx.save();
       ctx.strokeStyle = state.textColor;
       ctx.globalAlpha = 0.05;
       ctx.lineWidth = 1 * SCALE;
-      // Draw grid points
-      for(let x=0; x<canvas.width; x+=40*SCALE) {
-          for(let y=0; y<canvas.height; y+=40*SCALE) {
-              ctx.beginPath();
-              ctx.moveTo(x, y);
-              ctx.lineTo(x + 1*SCALE, y);
-              ctx.stroke();
-              ctx.beginPath();
-              ctx.moveTo(x, y);
-              ctx.lineTo(x, y + 1*SCALE);
-              ctx.stroke();
+      const gridSize = 40 * SCALE;
+      // Using dots/crosses simulation for grid
+      for(let x=0; x<canvas.width; x+=gridSize) {
+          for(let y=0; y<canvas.height; y+=gridSize) {
+               // Draw little crosses
+               ctx.beginPath();
+               ctx.moveTo(x, y); ctx.lineTo(x + 1*SCALE, y);
+               ctx.moveTo(x, y); ctx.lineTo(x, y + 1*SCALE);
+               ctx.stroke();
           }
       }
-      ctx.globalAlpha = 1.0;
+      ctx.restore();
   }
 
-  // Draw Noise Layer
+  // D. Noise
   drawNoise(ctx, canvas.width, canvas.height);
 
-  // 5. Draw Layout Specifics
+  // --- CONTENT RENDERING ---
   ctx.fillStyle = state.textColor;
   ctx.textBaseline = 'top';
 
   if (state.layoutStyle === 'duality') {
-      // --- DUALITY LAYOUT ---
+      // === DUALITY ===
       const halfHeight = canvasHeight / 2;
-      
-      // Top Section
       let cursorY = PADDING;
-      
-      // Background Number 01
-      ctx.font = `900 ${144 * SCALE}px "Noto Serif SC", serif`;
-      ctx.globalAlpha = 0.06;
-      ctx.fillText('01', -24 * SCALE, canvasHeight - halfHeight - (50 * SCALE)); // Rough positioning
-      ctx.globalAlpha = 1.0;
 
+      // 01 Background
+      ctx.save();
+      ctx.font = `900 ${144 * SCALE}px ${FONT_FAMILY}`;
+      ctx.globalAlpha = 0.06;
+      ctx.fillText('01', -24 * SCALE, isLongText(state) ? 200 * SCALE : canvasHeight/2 - 100*SCALE); 
+      ctx.restore();
+
+      // Header: Categories left, Title right
+      const headerY = PADDING;
       // Categories
-      ctx.font = `bold ${9 * SCALE}px "Noto Serif SC", serif`;
-      categories.forEach((cat, i) => {
+      ctx.save();
+      ctx.font = `bold ${9 * SCALE}px ${FONT_FAMILY}`;
+      let catY = headerY;
+      categories.forEach(cat => {
           ctx.strokeStyle = state.textColor;
           ctx.lineWidth = 2 * SCALE;
           ctx.beginPath();
-          ctx.moveTo(PADDING + 2*SCALE, cursorY);
-          ctx.lineTo(PADDING + 2*SCALE, cursorY + 14*SCALE);
+          ctx.moveTo(PADDING + 2*SCALE, catY);
+          ctx.lineTo(PADDING + 2*SCALE, catY + 14*SCALE);
           ctx.stroke();
-          ctx.fillText(cat, PADDING + 8*SCALE, cursorY);
-          cursorY += 18 * SCALE;
+          ctx.fillText(cat, PADDING + 8*SCALE, catY);
+          catY += 18 * SCALE;
       });
+      ctx.restore();
 
-      cursorY += 10 * SCALE;
-      
-      // Title
+      // Title Right
+      ctx.save();
       ctx.textAlign = 'right';
-      ctx.font = titleFont;
-      const safeTitleWidth = CANVAS_WIDTH - PADDING * 2 - 40 * SCALE;
-      // Simple font scaling for title
-      if (title.length > 8) ctx.font = `900 ${24 * SCALE}px "Noto Serif SC", serif`;
-      if (title.length > 12) ctx.font = `900 ${18 * SCALE}px "Noto Serif SC", serif`;
-      ctx.fillText(title, CANVAS_WIDTH - PADDING, PADDING);
+      ctx.font = getTitleFont(title, 36 * SCALE); // Dynamic sizing
+      ctx.fillText(title, CANVAS_WIDTH - PADDING, headerY);
       
       // Subtitle
-      ctx.font = subtitleFont;
+      const subY = headerY + 45 * SCALE;
+      ctx.font = `bold ${12 * SCALE}px ${FONT_FAMILY}`;
       ctx.globalAlpha = 0.8;
-      ctx.fillText(`○ ${subtitle} ●`, CANVAS_WIDTH - PADDING, PADDING + 45 * SCALE);
-      ctx.globalAlpha = 1.0;
-      
+      ctx.fillText(`○ ${subtitle} ●`, CANVAS_WIDTH - PADDING, subY);
+      ctx.restore();
+
+      cursorY = Math.max(catY, subY + 30 * SCALE);
+
       // Body 1
-      ctx.textAlign = 'left';
       ctx.font = bodyFont;
-      cursorY = Math.max(cursorY, PADDING + 80 * SCALE);
       wrappedBody1.lines.forEach(line => {
           ctx.fillText(line, PADDING, cursorY);
           cursorY += lineHeight;
       });
 
-      // Split Line / Decor
-      const splitY = cursorY + 30 * SCALE;
-      ctx.fillStyle = state.textColor;
+      // Divider Section
+      cursorY += 20 * SCALE;
+      // Diagonal gradient line simulation
+      const splitHeight = 40 * SCALE;
+      const gradLine = ctx.createLinearGradient(0, cursorY, CANVAS_WIDTH, cursorY + splitHeight);
+      gradLine.addColorStop(0.45, "rgba(0,0,0,0)");
+      gradLine.addColorStop(0.5, state.textColor);
+      gradLine.addColorStop(0.55, "rgba(0,0,0,0)");
+      ctx.save();
+      ctx.fillStyle = gradLine;
+      ctx.globalAlpha = 0.2; 
+      ctx.fillRect(0, cursorY, CANVAS_WIDTH, splitHeight);
+      ctx.restore();
+      
+      // Central Dot
       ctx.beginPath();
-      ctx.arc(CANVAS_WIDTH/2, splitY, 4*SCALE, 0, Math.PI*2);
-      ctx.fill();
-      
-      // Gradient line simulation
-      const grad = ctx.createLinearGradient(0, splitY, CANVAS_WIDTH, splitY + 40*SCALE);
-      grad.addColorStop(0.49, "transparent");
-      grad.addColorStop(0.5, state.textColor);
-      grad.addColorStop(0.51, "transparent");
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, splitY - 20*SCALE, CANVAS_WIDTH, 40*SCALE);
-
-      // Bottom Section
+      ctx.arc(CANVAS_WIDTH/2, cursorY + splitHeight/2, 4*SCALE, 0, Math.PI*2);
       ctx.fillStyle = state.textColor;
-      cursorY = splitY + 50 * SCALE;
-      
-      // Background Number 02
-      ctx.font = `900 ${144 * SCALE}px "Noto Serif SC", serif`;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(CANVAS_WIDTH/2, cursorY + splitHeight/2, 2*SCALE, 0, Math.PI*2);
+      ctx.fillStyle = state.accentColor;
+      ctx.fill();
+      ctx.fillStyle = state.textColor; // reset
+
+      cursorY += splitHeight + 20 * SCALE;
+
+      // 02 Background
+      ctx.save();
+      ctx.font = `900 ${144 * SCALE}px ${FONT_FAMILY}`;
       ctx.globalAlpha = 0.06;
       ctx.textAlign = 'right';
-      ctx.fillText('02', CANVAS_WIDTH + 24*SCALE, splitY - 50*SCALE);
-      ctx.globalAlpha = 1.0;
-      ctx.textAlign = 'left';
+      ctx.fillText('02', CANVAS_WIDTH + 24*SCALE, cursorY);
+      ctx.restore();
 
-      // Accent Background
+      // Bottom Background Accent
+      ctx.save();
       ctx.fillStyle = state.accentColor;
       ctx.globalAlpha = 0.1;
-      ctx.fillRect(0, cursorY - 20*SCALE, CANVAS_WIDTH, canvasHeight - cursorY + 20*SCALE);
-      ctx.globalAlpha = 1.0;
-      ctx.fillStyle = state.textColor;
+      // Approximating the CSS background gradient
+      ctx.fillRect(0, cursorY, CANVAS_WIDTH, canvasHeight - cursorY);
+      ctx.restore();
 
       // Body 2
       ctx.font = bodyFont;
@@ -299,75 +312,92 @@ export const generateNativeCover = async (state: CoverState): Promise<string> =>
           cursorY += lineHeight;
       });
 
-      // Footer Identity
-      cursorY = canvasHeight - PADDING - 40 * SCALE;
-      ctx.fillStyle = state.textColor;
-      ctx.fillRect(PADDING, cursorY, 2*SCALE, 30*SCALE); // Vertical bar
+      // Footer
+      const footerY = canvasHeight - PADDING - 40 * SCALE;
+      // Identity Bar
+      ctx.fillRect(PADDING, footerY, 2*SCALE, 30*SCALE);
       
+      ctx.save();
       ctx.font = `bold ${8 * SCALE}px monospace`;
-      ctx.fillText('IDENTITY', PADDING + 10*SCALE, cursorY);
-      
-      ctx.font = `900 italic ${20 * SCALE}px "Noto Serif SC", serif`;
-      ctx.fillText(state.author, PADDING + 10*SCALE, cursorY + 12*SCALE);
+      ctx.fillText('IDENTITY', PADDING + 10*SCALE, footerY);
+      ctx.font = `900 italic ${20 * SCALE}px ${FONT_FAMILY}`;
+      ctx.fillText(state.author, PADDING + 10*SCALE, footerY + 12*SCALE);
+      ctx.restore();
 
-      // Tech details
+      // Tech details right
+      ctx.save();
       ctx.textAlign = 'right';
-      ctx.font = metaFont;
+      ctx.font = `normal ${8 * SCALE}px monospace`;
       ctx.globalAlpha = 0.6;
-      ctx.fillText('SYS.READY', CANVAS_WIDTH - PADDING, cursorY + 10*SCALE);
+      ctx.fillText('SYS.READY', CANVAS_WIDTH - PADDING, footerY + 10*SCALE);
       ctx.font = `normal ${6 * SCALE}px monospace`;
-      ctx.fillText(`LOC: 32.45.11 N`, CANVAS_WIDTH - PADDING, cursorY + 25*SCALE);
+      ctx.fillText(`LOC: 32.45.11 N`, CANVAS_WIDTH - PADDING, footerY + 25*SCALE);
+      ctx.restore();
 
   } else if (state.layoutStyle === 'split') {
-      // --- SPLIT LAYOUT ---
+      // === SPLIT / MOVIE ===
       let cursorY = PADDING + 20 * SCALE;
 
-      // Header Group (Centered)
+      // Center White Glow (simulated with radial gradient)
+      ctx.save();
+      const glow = ctx.createRadialGradient(CANVAS_WIDTH/2, cursorY + 60*SCALE, 0, CANVAS_WIDTH/2, cursorY + 60*SCALE, 150*SCALE);
+      glow.addColorStop(0, 'rgba(255,255,255,0.8)');
+      glow.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, cursorY - 50*SCALE, CANVAS_WIDTH, 200*SCALE);
+      ctx.restore();
+
+      ctx.save();
       ctx.textAlign = 'center';
       
-      ctx.font = `normal ${10 * SCALE}px "Noto Serif SC", serif`;
+      // "The Story Of"
+      ctx.font = `normal ${10 * SCALE}px ${FONT_FAMILY}`;
       ctx.globalAlpha = 0.7;
       ctx.fillText('THE STORY OF', CANVAS_WIDTH/2, cursorY);
       cursorY += 20 * SCALE;
 
-      ctx.font = titleFont;
-      if (title.length > 8) ctx.font = `900 ${28 * SCALE}px "Noto Serif SC", serif`;
+      // Title
+      ctx.font = getTitleFont(title, 48 * SCALE);
       ctx.globalAlpha = 1.0;
       ctx.fillText(title, CANVAS_WIDTH/2, cursorY);
-      cursorY += 45 * SCALE;
+      cursorY += 50 * SCALE; // Adjust based on font size
 
-      ctx.font = subtitleFont;
-      ctx.globalAlpha = 0.8;
-      // Border lines for subtitle
+      // Subtitle with lines
       const subWidth = ctx.measureText(subtitle).width;
-      const lineXStart = (CANVAS_WIDTH - subWidth) / 2 - 20 * SCALE;
-      const lineXEnd = (CANVAS_WIDTH + subWidth) / 2 + 20 * SCALE;
-      ctx.lineWidth = 1 * SCALE;
+      const lineWidth = Math.max(subWidth + 40*SCALE, 100*SCALE);
+      
+      ctx.font = subtitleFont;
+      // Top line
+      ctx.globalAlpha = 0.4;
       ctx.beginPath();
-      ctx.moveTo(lineXStart, cursorY - 5*SCALE);
-      ctx.lineTo(lineXEnd, cursorY - 5*SCALE);
+      ctx.moveTo((CANVAS_WIDTH - lineWidth)/2, cursorY);
+      ctx.lineTo((CANVAS_WIDTH + lineWidth)/2, cursorY);
       ctx.stroke();
       
-      ctx.fillText(subtitle, CANVAS_WIDTH/2, cursorY);
-      
-      ctx.beginPath();
-      ctx.moveTo(lineXStart, cursorY + 18*SCALE);
-      ctx.lineTo(lineXEnd, cursorY + 18*SCALE);
-      ctx.stroke();
-      
-      cursorY += 50 * SCALE;
+      ctx.globalAlpha = 1.0;
+      ctx.fillText(subtitle, CANVAS_WIDTH/2, cursorY + 8*SCALE);
 
-      // Decoration Circle (Accent)
+      // Bottom line
+      ctx.globalAlpha = 0.4;
+      ctx.beginPath();
+      ctx.moveTo((CANVAS_WIDTH - lineWidth)/2, cursorY + 28*SCALE);
+      ctx.lineTo((CANVAS_WIDTH + lineWidth)/2, cursorY + 28*SCALE);
+      ctx.stroke();
+      
+      cursorY += 60 * SCALE;
+      ctx.restore();
+
+      // Body
+      // Accent shape background
+      ctx.save();
       ctx.fillStyle = state.accentColor;
       ctx.globalAlpha = 0.2;
       ctx.beginPath();
-      ctx.arc(CANVAS_WIDTH - 20*SCALE, 60*SCALE, 80*SCALE, 0, Math.PI*2);
+      ctx.moveTo(CANVAS_WIDTH, 0);
+      ctx.arc(CANVAS_WIDTH - 20*SCALE, 60*SCALE, 100*SCALE, 0, Math.PI*2);
       ctx.fill();
-      ctx.globalAlpha = 1.0;
-      ctx.fillStyle = state.textColor;
+      ctx.restore();
 
-      // Body Text
-      ctx.textAlign = 'left';
       ctx.font = bodyFont;
       wrappedBody1.lines.forEach(line => {
           ctx.fillText(line, PADDING, cursorY);
@@ -375,135 +405,213 @@ export const generateNativeCover = async (state: CoverState): Promise<string> =>
       });
 
       // Footer
-      cursorY = Math.max(cursorY + 40*SCALE, canvasHeight - PADDING - 40*SCALE);
+      const footerY = Math.max(cursorY + 40*SCALE, canvasHeight - PADDING - 40*SCALE);
       
-      // Line
+      // Divider
+      ctx.save();
       ctx.globalAlpha = 0.3;
+      ctx.beginPath(); 
+      ctx.moveTo(PADDING, footerY); 
+      ctx.lineTo(CANVAS_WIDTH - PADDING, footerY); 
+      ctx.stroke();
+      ctx.restore();
+
+      // Screenplay / Author
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.font = `bold ${8 * SCALE}px monospace`;
+      ctx.fillText('SCREENPLAY', CANVAS_WIDTH/2 - 40*SCALE, footerY + 15*SCALE);
+      ctx.font = `italic ${12 * SCALE}px ${FONT_FAMILY}`;
+      ctx.fillText(author, CANVAS_WIDTH/2 + 20*SCALE, footerY + 15*SCALE);
+      
+      // Categories / NO.
+      const bottomY = footerY + 35 * SCALE;
+      ctx.font = `bold ${8 * SCALE}px monospace`;
+      ctx.globalAlpha = 0.6;
+      ctx.fillText(`NO. ${Date.now().toString().slice(-4)}`, CANVAS_WIDTH - PADDING - 40*SCALE, bottomY); // approximate right pos
+      
+      // Categories boxes
+      let catX = PADDING + 20*SCALE;
+      categories.forEach(cat => {
+          const w = ctx.measureText(cat).width + 10*SCALE;
+          ctx.strokeRect(catX, bottomY - 8*SCALE, w, 14*SCALE);
+          ctx.fillText(cat, catX + w/2, bottomY - 5*SCALE); // Center in box
+          catX += w + 10*SCALE;
+      });
+      ctx.restore();
+
+  } else {
+      // === MINIMAL / DEFAULT ===
+      let cursorY = PADDING;
+
+      // Header Row 1: SYSTEM_NORMAL | Stats
+      ctx.save();
+      // Left: System Normal
+      ctx.fillStyle = state.accentColor;
+      ctx.fillRect(PADDING, cursorY + 2*SCALE, 6*SCALE, 6*SCALE); // Pulse dot
+      ctx.fillStyle = state.textColor;
+      ctx.font = `bold ${9 * SCALE}px monospace`;
+      ctx.fillText('SYSTEM_NORMAL', PADDING + 12*SCALE, cursorY);
+      
+      // Stats
+      ctx.globalAlpha = 0.6;
+      ctx.font = `normal ${8 * SCALE}px monospace`;
+      ctx.fillText(`全文约${readingLength}字 预计阅读用时${readingTime}分`, PADDING + 110*SCALE, cursorY + 1*SCALE);
+      
+      // Right: REC
+      ctx.textAlign = 'right';
+      ctx.fillText(`REC-${Math.floor(Math.random()*9999)}`, CANVAS_WIDTH - PADDING, cursorY);
+      ctx.restore();
+
+      cursorY += 20 * SCALE;
+      
+      // Divider Line
+      ctx.save();
+      ctx.globalAlpha = 0.4;
       ctx.beginPath();
       ctx.moveTo(PADDING, cursorY);
       ctx.lineTo(CANVAS_WIDTH - PADDING, cursorY);
       ctx.stroke();
-      ctx.globalAlpha = 1.0;
-      
-      cursorY += 15 * SCALE;
-      ctx.textAlign = 'left';
-      ctx.font = `italic ${12 * SCALE}px "Noto Serif SC", serif`;
-      ctx.fillText(state.author, PADDING + 80*SCALE, cursorY);
-      
-      ctx.font = `bold ${8 * SCALE}px monospace`;
-      ctx.fillText('SCREENPLAY', PADDING, cursorY + 4*SCALE);
-
-      // Categories right
-      ctx.textAlign = 'right';
-      let catX = CANVAS_WIDTH - PADDING;
-      categories.forEach(cat => {
-          ctx.strokeRect(catX - 50*SCALE, cursorY - 5*SCALE, 50*SCALE, 16*SCALE);
-          ctx.font = `bold ${8 * SCALE}px "Noto Serif SC", serif`;
-          ctx.fillText(cat, catX - 5*SCALE, cursorY);
-          catX -= 55 * SCALE;
-      });
-
-  } else {
-      // --- MINIMAL / DEFAULT LAYOUT ---
-      let cursorY = PADDING;
-
-      // Top Tech Bar
-      ctx.fillStyle = state.accentColor;
-      ctx.fillRect(PADDING, cursorY + 2*SCALE, 6*SCALE, 6*SCALE);
-      
-      ctx.fillStyle = state.textColor;
-      ctx.font = metaFont;
-      ctx.fillText('SYSTEM_NORMAL', PADDING + 12*SCALE, cursorY);
-      
-      // Reading stats
-      ctx.textAlign = 'right';
-      ctx.globalAlpha = 0.6;
-      ctx.fillText(`REC-${Math.floor(Math.random()*9999)}`, CANVAS_WIDTH - PADDING, cursorY);
-      ctx.globalAlpha = 1.0;
-      
-      cursorY += 25 * SCALE;
-
-      // Divider
-      ctx.globalAlpha = 0.2;
-      ctx.fillRect(PADDING, cursorY, CANVAS_WIDTH - PADDING*2, 1*SCALE);
-      ctx.globalAlpha = 1.0;
+      ctx.restore();
       
       cursorY += 20 * SCALE;
 
       // Categories
-      ctx.textAlign = 'left';
+      ctx.save();
+      let catX = PADDING;
       categories.forEach(cat => {
-          ctx.fillStyle = 'rgba(255,255,255,0.5)';
-          ctx.fillRect(PADDING, cursorY, 60*SCALE, 16*SCALE);
-          ctx.strokeRect(PADDING, cursorY, 60*SCALE, 16*SCALE);
-          ctx.fillStyle = state.textColor;
-          ctx.font = `bold ${8 * SCALE}px "Noto Serif SC", serif`;
-          ctx.fillText(cat, PADDING + 4*SCALE, cursorY + 2*SCALE);
-          
-          // Accent bar
+          // Shadow box
+          ctx.fillStyle = 'rgba(255,255,255,0.4)';
+          ctx.fillRect(catX, cursorY, 60*SCALE, 16*SCALE);
+          // Border
+          ctx.strokeStyle = state.textColor;
+          ctx.lineWidth = 1 * SCALE;
+          ctx.strokeRect(catX, cursorY, 60*SCALE, 16*SCALE);
+          // Accent bar right
           ctx.fillStyle = state.accentColor;
-          ctx.fillRect(PADDING + 60*SCALE, cursorY, 4*SCALE, 16*SCALE);
+          ctx.fillRect(catX + 56*SCALE, cursorY, 4*SCALE, 16*SCALE);
           
-          cursorY += 22 * SCALE;
+          // Text
+          ctx.fillStyle = state.textColor;
+          ctx.font = `bold ${9 * SCALE}px ${FONT_FAMILY}`;
+          ctx.fillText(cat.toUpperCase(), catX + 6*SCALE, cursorY + 2*SCALE);
+          
+          catX += 70 * SCALE;
       });
-
-      // Title
-      ctx.fillStyle = state.textColor;
-      ctx.font = titleFont;
-      // Auto scale title
-      if (title.length > 8) ctx.font = `900 ${28 * SCALE}px "Noto Serif SC", serif`;
-      if (title.length > 14) ctx.font = `900 ${20 * SCALE}px "Noto Serif SC", serif`;
-      ctx.fillText(title, PADDING, cursorY);
-      cursorY += 45 * SCALE;
-
-      // Subtitle
-      ctx.font = subtitleFont;
-      ctx.fillText(`/ ${subtitle}`, PADDING, cursorY);
+      ctx.restore();
       
       cursorY += 30 * SCALE;
 
-      // Body Text with side decoration
-      // Sidebar
+      // Title
+      ctx.save();
+      ctx.font = getTitleFont(title, 36 * SCALE);
+      ctx.fillText(title, PADDING, cursorY);
+      ctx.restore();
+      
+      cursorY += 45 * SCALE;
+
+      // Title Divider
+      ctx.save();
+      ctx.globalAlpha = 0.2;
+      ctx.beginPath();
+      ctx.moveTo(PADDING, cursorY);
+      ctx.lineTo(CANVAS_WIDTH - PADDING, cursorY);
+      ctx.stroke();
+      ctx.restore();
+      
+      cursorY += 15 * SCALE;
+
+      // Subtitle
+      ctx.save();
+      ctx.font = `bold ${14 * SCALE}px ${FONT_FAMILY}`;
+      ctx.fillText(`/ ${subtitle}`, PADDING, cursorY);
+      ctx.restore();
+      
+      cursorY += 30 * SCALE;
+
+      // Archive Bar
+      // ARCHIVE [Line] REF.07
+      ctx.save();
+      ctx.fillStyle = state.textColor;
+      // Archive Box
+      ctx.fillRect(PADDING, cursorY, 50*SCALE, 14*SCALE);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = `bold ${9 * SCALE}px monospace`;
+      ctx.fillText('ARCHIVE', PADDING + 6*SCALE, cursorY + 2*SCALE);
+      
+      // Line
+      ctx.fillStyle = state.textColor;
+      ctx.globalAlpha = 0.3;
+      ctx.fillRect(PADDING + 55*SCALE, cursorY + 6*SCALE, 200*SCALE, 1*SCALE);
+      
+      // Ref
+      ctx.globalAlpha = 0.4;
+      ctx.fillText('REF.07', CANVAS_WIDTH - PADDING - 40*SCALE, cursorY + 2*SCALE);
+      ctx.restore();
+      
+      cursorY += 20 * SCALE;
+
+      // Body Container
+      // Left vertical line
+      ctx.save();
+      ctx.globalAlpha = 0.2;
+      ctx.fillRect(PADDING, cursorY, 1*SCALE, wrappedBody1.height + 20*SCALE);
+      ctx.globalAlpha = 1.0;
+      // Top accent bar
       ctx.fillStyle = state.accentColor;
       ctx.fillRect(PADDING, cursorY, 4*SCALE, 30*SCALE);
-      ctx.fillStyle = state.textColor;
-      ctx.globalAlpha = 0.2;
-      ctx.fillRect(PADDING, cursorY + 30*SCALE, 1*SCALE, wrappedBody1.height);
-      ctx.globalAlpha = 1.0;
+      ctx.restore();
 
       // Text
+      ctx.save();
       ctx.font = bodyFont;
-      const textX = PADDING + 20 * SCALE;
+      // Indent text by 24px (6 * SCALE) to match preview pl-6
+      const bodyX = PADDING + 24 * SCALE; 
       wrappedBody1.lines.forEach(line => {
-          ctx.fillText(line, textX, cursorY);
+          ctx.fillText(line, bodyX, cursorY);
           cursorY += lineHeight;
       });
-
+      ctx.restore();
+      
       // Footer
       cursorY += 30 * SCALE;
+      // Dashed line
+      ctx.save();
       ctx.globalAlpha = 0.4;
       ctx.setLineDash([4 * SCALE, 4 * SCALE]);
       ctx.beginPath();
       ctx.moveTo(PADDING, cursorY);
       ctx.lineTo(CANVAS_WIDTH - PADDING, cursorY);
       ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.globalAlpha = 1.0;
+      ctx.restore();
       
       cursorY += 15 * SCALE;
-      ctx.font = metaFont;
+      
+      ctx.save();
+      // Decor dots
+      ctx.globalAlpha = 0.2;
+      ctx.fillRect(PADDING, cursorY - 25*SCALE, 16*SCALE, 4*SCALE); // Simple rect for dots
+      
+      // Auth / Author
+      ctx.font = `normal ${8 * SCALE}px monospace`;
       ctx.globalAlpha = 0.5;
       ctx.fillText('AUTHORIZED PERSONNEL', PADDING, cursorY);
+      
       ctx.globalAlpha = 1.0;
+      ctx.font = `bold ${12 * SCALE}px ${FONT_FAMILY}`;
+      ctx.fillText(state.author.toUpperCase(), PADDING, cursorY + 12*SCALE);
       
-      ctx.font = `bold ${12 * SCALE}px "Noto Serif SC", serif`;
-      ctx.fillText(author, PADDING, cursorY + 12*SCALE);
-      
+      // Year
       ctx.textAlign = 'right';
       ctx.font = `normal ${20 * SCALE}px monospace`;
       ctx.globalAlpha = 0.2;
       ctx.fillText(new Date().getFullYear().toString(), CANVAS_WIDTH - PADDING, cursorY + 10*SCALE);
+      ctx.restore();
   }
 
   return canvas.toDataURL('image/png', 1.0);
 };
+
+function isLongText(state: CoverState) {
+    return state.mode === 'long-text';
+}
