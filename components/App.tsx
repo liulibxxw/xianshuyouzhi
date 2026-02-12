@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { CoverState, ContentPreset, EditorTab, AdvancedPreset, TransformationRule } from '../types';
+import { CoverState, ContentPreset, EditorTab, AdvancedPreset, TransformationRule } from './types';
 import { 
   INITIAL_TITLE, 
   INITIAL_SUBTITLE, 
@@ -13,12 +13,12 @@ import {
   DEFAULT_PRESETS,
   PastelColor,
   INITIAL_CATEGORY
-} from '../constants';
-import CoverPreview from './CoverPreview';
-import EditorControls, { MobileDraftsStrip, MobileStylePanel, ContentEditorModal, MobileExportPanel, MobileSearchPanel } from './EditorControls';
-import { MobilePresetPanel } from './PresetPanel';
-import ExportModal from './ExportModal';
-import RichTextToolbar from './RichTextToolbar';
+} from './constants';
+import CoverPreview from './components/CoverPreview';
+import EditorControls, { MobileDraftsStrip, MobileStylePanel, ContentEditorModal, MobileExportPanel, MobileSearchPanel } from './components/EditorControls';
+import { MobilePresetPanel } from './components/PresetPanel';
+import ExportModal from './components/ExportModal';
+import RichTextToolbar from './components/RichTextToolbar';
 import { ArrowDownTrayIcon, PaintBrushIcon, BookmarkIcon, ArrowsRightLeftIcon, SwatchIcon, SparklesIcon, MagnifyingGlassIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import { toPng } from 'html-to-image';
 import { Capacitor } from '@capacitor/core';
@@ -209,8 +209,6 @@ const App: React.FC = () => {
         ...prev,
         title: preset.title,
         subtitle: preset.subtitle,
-        // Remove automatic layout switching. Only switch if the preset is specifically Duality. 
-        // Otherwise, maintain current layout to allow free switching.
         layoutStyle: isDualityPreset ? 'duality' : prev.layoutStyle,
         bodyText: preset.bodyText || prev.bodyText,
         secondaryBodyText: preset.secondaryBodyText || prev.secondaryBodyText,
@@ -260,7 +258,6 @@ const App: React.FC = () => {
             const text = element.innerText || element.textContent || "";
             if (!text.trim()) return;
 
-            // 1. Check for Structure Rules (Priority) - Independent of regex
             const structRule = rules.find(r => r.isActive && r.structure === 'multi-align-row');
             if (structRule) {
                 const sep = structRule.separator || '|';
@@ -295,7 +292,6 @@ const App: React.FC = () => {
                 }
             }
 
-            // 2. Normal Rules (Paragraph & Match)
             let hasChanges = false;
             let currentHTML = element.innerHTML;
             
@@ -394,46 +390,33 @@ const App: React.FC = () => {
     setShowExportModal(true);
     try {
       await document.fonts.ready; await new Promise(r => setTimeout(r, 500)); 
-      
-      const element = previewRef.current;
-      const contentHeight = element?.scrollHeight || 0;
-      
       const fontCss = await getEmbedFontCSS();
       const exportOptions: any = { cacheBust: true, pixelRatio: 4, backgroundColor: state.backgroundColor, fontEmbedCSS: fontCss };
       
       if (state.mode === 'cover') { 
         exportOptions.width = 400; 
         exportOptions.height = 440; 
+        exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; 
+      }
+      else { 
+        // 关键修复：长文模式下，显式计算 scrollHeight，并强制设置高度
+        // 防止 flex-grow 自动填充导致的大量空白
+        const element = previewRef.current;
+        const currentHeight = element.scrollHeight;
+        
+        exportOptions.width = 400; 
+        exportOptions.height = currentHeight;
+        exportOptions.canvasHeight = currentHeight;
+        
         exportOptions.style = { 
             width: '400px', 
-            height: '440px', 
-            maxWidth: 'none', 
+            height: 'auto', // 允许自然高度
+            minHeight: 'auto', // 覆盖 min-height
             maxHeight: 'none', 
             transform: 'none', 
-            margin: '0' 
+            margin: '0',
+            overflow: 'visible'
         }; 
-      } else { 
-        exportOptions.width = 400;
-        
-        if (contentHeight > 0) {
-            exportOptions.height = contentHeight;
-            exportOptions.style = { 
-                width: '400px', 
-                height: `${contentHeight}px`,
-                maxWidth: 'none', 
-                transform: 'none', 
-                margin: '0'
-            }; 
-        } else {
-             exportOptions.style = { 
-                width: '400px', 
-                maxWidth: 'none', 
-                transform: 'none', 
-                margin: '0',
-                height: 'auto',
-                minHeight: '0'
-            }; 
-        }
       }
       
       const dataUrl = await toPng(previewRef.current, exportOptions);

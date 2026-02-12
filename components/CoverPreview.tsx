@@ -46,7 +46,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     width: '400px',
     minWidth: '400px',
     maxWidth: '400px',
-    fontSynthesis: 'style', // 修改为 style 以允许浏览器模拟斜体
+    fontSynthesis: 'style',
     boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
@@ -68,7 +68,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     }
   }, [secondaryBodyText, layoutStyle, mode]);
 
-  // 计算字数和阅读时间
   const readingStats = useMemo(() => {
       const plainText = bodyText.replace(/<[^>]+>/g, '').trim();
       const length = plainText.length;
@@ -101,9 +100,11 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   };
 
   const isLongText = mode === 'long-text';
-  // 关键修复：长图导出时禁用 flex-auto，防止内容撑开填充父容器高度（父容器由 html-to-image 设定高度）
-  const flexGrowClass = isLongText ? (isExporting ? '' : 'flex-auto') : 'flex-1';
-  const minHeightClass = isLongText ? '' : 'min-h-0';
+  // 核心修复：如果是长文模式且正在导出，强制使用 flex-none，禁止自动拉伸
+  // 这防止了 html-to-image 在巨大的虚拟视口中将内容区域无限拉长
+  const flexGrowClass = (isLongText && isExporting) ? 'flex-none' : (isLongText ? 'flex-auto' : 'flex-1');
+  const minHeightClass = (isLongText && isExporting) ? 'min-h-0' : (isLongText ? '' : 'min-h-0');
+
   const categories = effectiveCategory ? effectiveCategory.split(/[、, ]/).map(c => c.trim()).filter(Boolean) : [];
   const displayCategories = categories.length > 0 ? categories : (effectiveCategory ? [effectiveCategory] : []);
 
@@ -111,7 +112,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     const length = title.length;
     let sizeClass = 'text-4xl';
     
-    // 强制不换行，且根据字数更精细地缩小字号
     if (layoutStyle === 'split') {
         if (length > 30) sizeClass = 'text-[10px]';
         else if (length > 25) sizeClass = 'text-[12px]';
@@ -129,7 +129,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
         else if (length > 10) sizeClass = 'text-2xl';
         else sizeClass = 'text-4xl';
     } else {
-        // Default (used to include centered, now fallback)
         if (length > 35) sizeClass = 'text-[9px]';
         else if (length > 30) sizeClass = 'text-[10px]';
         else if (length > 25) sizeClass = 'text-[11px]';
@@ -142,7 +141,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   };
 
   const getSubtitleSizeClass = (baseClass: string, length: number) => {
-      // 更加激进的字号缩小策略，防止换行
       if (length > 60) return 'text-[7px]';
       if (length > 50) return 'text-[8px]';
       if (length > 40) return 'text-[9px]';
@@ -231,7 +229,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
 
     // Default Fallback (Minimal) to ensure something renders if style is unknown
     return (
-        <div key="layout-minimal" className={`relative z-10 p-6 w-full flex flex-col justify-between ${isLongText ? (isExporting ? '' : 'flex-auto') : 'h-full overflow-hidden'}`}>
+        <div key="layout-minimal" className={`relative z-10 p-6 w-full flex flex-col justify-between ${isLongText ? 'flex-auto' : 'h-full overflow-hidden'}`}>
           <div className={`${flexGrowClass} flex flex-col ${minHeightClass}`}>
               <div className="flex justify-between items-end border-b pb-2 mb-3 opacity-80 shrink-0" style={{ borderColor: `${textColor}40` }}>
                 <div className="flex flex-col gap-1">

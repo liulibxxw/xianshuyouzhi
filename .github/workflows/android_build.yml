@@ -32,8 +32,6 @@ jobs:
       - name: Initialize Android Project
         run: |
           npx cap add android || echo "Android folder already exists"
-          # 关键修改1：先执行 sync，防止它覆盖我们后续的图标修改
-          npx cap sync android
           
           # 搜索 icon-only.png 文件，支持不同层级的目录
           ICON_PATH=$(find . -name "icon-only.png" | head -n 1)
@@ -50,9 +48,9 @@ jobs:
             done
             
             # 2. 移除自适应图标定义 (Adaptive Icons) 及其所有干扰项
-            # 关键修改2：使用通配符删除 anydpi*，这将同时删除 mipmap-anydpi-v26 和 mipmap-anydpi-v33 (Android 13+)
-            # 如果保留 v33，侧边栏等高版本场景仍会优先读取 XML 导致 PNG 失效。
-            rm -rf "$RES_PATH"/mipmap-anydpi*
+            # 在现代 Android (8.0+) 中，系统默认生成 anydpi-v26 的 XML，这会导致我们的 PNG 被忽略。
+            # 删除此目录并清理默认资源，强制系统回退到常规的 ic_launcher.png。
+            rm -rf "$RES_PATH/mipmap-anydpi-v26"
             
             # 3. 清理可能存在的默认 foreground 和 background 资源以及 webp 格式图标
             find "$RES_PATH" -name "ic_launcher_foreground.*" -delete
@@ -64,6 +62,8 @@ jobs:
             echo "Error: icon-only.png not found in repository! Build cannot proceed without an icon."
             exit 1
           fi
+          
+          npx cap sync android
 
       - name: Build Debug APK
         run: |
