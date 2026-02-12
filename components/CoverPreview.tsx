@@ -101,7 +101,8 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   };
 
   const isLongText = mode === 'long-text';
-  const flexGrowClass = isLongText ? 'flex-auto' : 'flex-1';
+  // 关键修复：长图导出时禁用 flex-auto，防止内容撑开填充父容器高度（父容器由 html-to-image 设定高度）
+  const flexGrowClass = isLongText ? (isExporting ? '' : 'flex-auto') : 'flex-1';
   const minHeightClass = isLongText ? '' : 'min-h-0';
   const categories = effectiveCategory ? effectiveCategory.split(/[、, ]/).map(c => c.trim()).filter(Boolean) : [];
   const displayCategories = categories.length > 0 ? categories : (effectiveCategory ? [effectiveCategory] : []);
@@ -230,7 +231,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
 
     // Default Fallback (Minimal) to ensure something renders if style is unknown
     return (
-        <div key="layout-minimal" className={`relative z-10 p-6 w-full flex flex-col justify-between ${isLongText ? 'flex-auto' : 'h-full overflow-hidden'}`}>
+        <div key="layout-minimal" className={`relative z-10 p-6 w-full flex flex-col justify-between ${isLongText ? (isExporting ? '' : 'flex-auto') : 'h-full overflow-hidden'}`}>
           <div className={`${flexGrowClass} flex flex-col ${minHeightClass}`}>
               <div className="flex justify-between items-end border-b pb-2 mb-3 opacity-80 shrink-0" style={{ borderColor: `${textColor}40` }}>
                 <div className="flex flex-col gap-1">

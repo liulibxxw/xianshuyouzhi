@@ -394,6 +394,10 @@ const App: React.FC = () => {
     setShowExportModal(true);
     try {
       await document.fonts.ready; await new Promise(r => setTimeout(r, 500)); 
+      
+      const element = previewRef.current;
+      const contentHeight = element?.scrollHeight || 0;
+      
       const fontCss = await getEmbedFontCSS();
       const exportOptions: any = { cacheBust: true, pixelRatio: 4, backgroundColor: state.backgroundColor, fontEmbedCSS: fontCss };
       
@@ -409,15 +413,27 @@ const App: React.FC = () => {
             margin: '0' 
         }; 
       } else { 
-        exportOptions.width = 400; 
-        exportOptions.style = { 
-            width: '400px', 
-            maxWidth: 'none', 
-            transform: 'none', 
-            margin: '0',
-            height: 'auto',
-            minHeight: '0'
-        }; 
+        exportOptions.width = 400;
+        
+        if (contentHeight > 0) {
+            exportOptions.height = contentHeight;
+            exportOptions.style = { 
+                width: '400px', 
+                height: `${contentHeight}px`,
+                maxWidth: 'none', 
+                transform: 'none', 
+                margin: '0'
+            }; 
+        } else {
+             exportOptions.style = { 
+                width: '400px', 
+                maxWidth: 'none', 
+                transform: 'none', 
+                margin: '0',
+                height: 'auto',
+                minHeight: '0'
+            }; 
+        }
       }
       
       const dataUrl = await toPng(previewRef.current, exportOptions);
