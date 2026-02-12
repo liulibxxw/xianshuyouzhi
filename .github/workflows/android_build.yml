@@ -1,3 +1,4 @@
+
 name: Build Android APK
 
 on:
@@ -17,6 +18,11 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+
       - name: Install Dependencies
         run: npm install
 
@@ -33,31 +39,52 @@ jobs:
         run: |
           npx cap add android || echo "Android folder already exists"
           
-          # 搜索 icon-only.png 文件，支持不同层级的目录
+          # 搜索 icon-only.png 文件
           ICON_PATH=$(find . -name "icon-only.png" | head -n 1)
           
           if [ -n "$ICON_PATH" ]; then
-            echo "Icon found at $ICON_PATH. Applying to Android project..."
+            echo "Icon found at $ICON_PATH. Generating density-specific icons..."
             RES_PATH="android/app/src/main/res"
             
-            # 1. 覆盖所有密度的 mipmap 图标
-            for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
-              mkdir -p "$RES_PATH/mipmap-$density"
-              cp "$ICON_PATH" "$RES_PATH/mipmap-$density/ic_launcher.png"
-              cp "$ICON_PATH" "$RES_PATH/mipmap-$density/ic_launcher_round.png"
-            done
+            # 定义密度和对应的尺寸
+            # mdpi: 48x48
+            # hdpi: 72x72
+            # xhdpi: 96x96
+            # xxhdpi: 144x144
+            # xxxhdpi: 192x192
             
-            # 2. 移除自适应图标定义 (Adaptive Icons) 及其所有干扰项
-            # 在现代 Android (8.0+) 中，系统默认生成 anydpi-v26 的 XML，这会导致我们的 PNG 被忽略。
-            # 删除此目录并清理默认资源，强制系统回退到常规的 ic_launcher.png。
+            # 使用 ImageMagick 调整大小，确保侧边栏等组件能加载正确尺寸的图标
+            
+            mkdir -p "$RES_PATH/mipmap-mdpi"
+            convert "$ICON_PATH" -resize 48x48 "$RES_PATH/mipmap-mdpi/ic_launcher.png"
+            convert "$ICON_PATH" -resize 48x48 "$RES_PATH/mipmap-mdpi/ic_launcher_round.png"
+            
+            mkdir -p "$RES_PATH/mipmap-hdpi"
+            convert "$ICON_PATH" -resize 72x72 "$RES_PATH/mipmap-hdpi/ic_launcher.png"
+            convert "$ICON_PATH" -resize 72x72 "$RES_PATH/mipmap-hdpi/ic_launcher_round.png"
+            
+            mkdir -p "$RES_PATH/mipmap-xhdpi"
+            convert "$ICON_PATH" -resize 96x96 "$RES_PATH/mipmap-xhdpi/ic_launcher.png"
+            convert "$ICON_PATH" -resize 96x96 "$RES_PATH/mipmap-xhdpi/ic_launcher_round.png"
+            
+            mkdir -p "$RES_PATH/mipmap-xxhdpi"
+            convert "$ICON_PATH" -resize 144x144 "$RES_PATH/mipmap-xxhdpi/ic_launcher.png"
+            convert "$ICON_PATH" -resize 144x144 "$RES_PATH/mipmap-xxhdpi/ic_launcher_round.png"
+            
+            mkdir -p "$RES_PATH/mipmap-xxxhdpi"
+            convert "$ICON_PATH" -resize 192x192 "$RES_PATH/mipmap-xxxhdpi/ic_launcher.png"
+            convert "$ICON_PATH" -resize 192x192 "$RES_PATH/mipmap-xxxhdpi/ic_launcher_round.png"
+
+            # 移除自适应图标定义 (Adaptive Icons) 及其所有干扰项
+            # 删除此目录并清理默认资源，强制系统回退到常规的 ic_launcher.png
             rm -rf "$RES_PATH/mipmap-anydpi-v26"
             
-            # 3. 清理可能存在的默认 foreground 和 background 资源以及 webp 格式图标
+            # 清理可能存在的默认 foreground 和 background 资源以及 webp 格式图标
             find "$RES_PATH" -name "ic_launcher_foreground.*" -delete
             find "$RES_PATH" -name "ic_launcher_background.*" -delete
             find "$RES_PATH" -name "ic_launcher*.webp" -delete
             
-            echo "Icon application complete. Forcing PNG-only launcher mode."
+            echo "Icon generation complete."
           else
             echo "Error: icon-only.png not found in repository! Build cannot proceed without an icon."
             exit 1
