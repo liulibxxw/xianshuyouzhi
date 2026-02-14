@@ -3,6 +3,14 @@
  * 基于 DOM 遍历的文本清理工具
  * 移除末尾的空行和不可见元素，但保留富文本格式
  * 修复 Android WebView 中 contentEditable 生成的多余空行
+ *
+ * Android WebView contentEditable 典型输出:
+ *   第一行文字<div>第二行</div><div><br></div><div>第三行</div>
+ * 桌面 Chrome 典型输出:
+ *   第一行文字<br>第二行<br><br>第三行
+ *
+ * 本函数将 Android 格式统一转换为 Chrome 格式（纯 <br> 换行），
+ * 然后清理末尾多余的空行。
  */
 export const getCleanContent = (html: string): string => {
   if (!html) return '';
@@ -10,50 +18,64 @@ export const getCleanContent = (html: string): string => {
   const temp = document.createElement('div');
   temp.innerHTML = html;
 
-  // Android WebView 的 contentEditable 会将每一行包在 <div> 中，
-  // 空行变成 <div><br></div>，导致导出时出现双倍行距的额外空行。
-  // 这里将仅包含 <br> 的 <div> 替换为单个 <br>，规范化换行结构。
-  const normalizeDivBr = (parent: HTMLElement) => {
+  // 判断 div 在视觉上是否为空行（只包含 <br> 或完全为空）
+  const isDivEmpty = (el: HTMLElement): boolean => {
+    if (el.childNodes.length === 0) return true;
+    if (el.childNodes.length === 1 && el.firstChild?.nodeType === Node.ELEMENT_NODE 
+        && (el.firstChild as HTMLElement).tagName?.toLowerCase() === 'br') return true;
+    // 只有空白文本
+    if (el.childNodes.length === 1 && el.firstChild?.nodeType === Node.TEXT_NODE 
+        && !el.firstChild.textContent?.trim()) return true;
+    return false;
+  };
+
+  // 将 Android WebView 的 <div> 包裹结构解包为纯 <br> 换行
+  // Android contentEditable 中每个 <div> 是独立一行（块级元素），
+  // 第一行文字不被 div 包裹，后续每行各一个 <div>：
+  //   第一行<div>第二行</div><div><br></div><div>第四行</div>
+  // 等价桌面 Chrome:
+  //   第一行<br>第二行<br><br>第四行
+  //
+  // 规则：每个 <div> 前面放一个 <br>（表示上一行结束），
+  //       有内容的 <div> 解包内容，空 <div> 不输出内容。
+  const flattenDivs = (parent: HTMLElement) => {
     const children = Array.from(parent.childNodes);
+    
     for (const child of children) {
       if (child.nodeType !== Node.ELEMENT_NODE) continue;
       const el = child as HTMLElement;
-      const tag = el.tagName.toLowerCase();
+      if (el.tagName.toLowerCase() !== 'div') continue;
+
+      // 先递归处理嵌套的 div
+      flattenDivs(el);
+
+      const fragment = document.createDocumentFragment();
+
+      // 如果这个 div 前面有内容（文本或其他元素），加 <br> 换行
+      // 如果是容器的第一个有意义的节点，不需要换行
+      const prev = el.previousSibling;
+      const hasPrevContent = prev && (
+        (prev.nodeType === Node.ELEMENT_NODE) ||
+        (prev.nodeType === Node.TEXT_NODE && !!prev.textContent?.trim())
+      );
       
-      if (tag === 'div') {
-        // 情况1: <div><br></div> → 替换为 <br>
-        if (el.childNodes.length === 1 && el.firstChild?.nodeType === Node.ELEMENT_NODE && (el.firstChild as HTMLElement).tagName?.toLowerCase() === 'br') {
-          const br = document.createElement('br');
-          parent.replaceChild(br, el);
-          continue;
-        }
-        // 情况2: <div></div>（完全空的 div）→ 替换为 <br>
-        if (el.childNodes.length === 0) {
-          const br = document.createElement('br');
-          parent.replaceChild(br, el);
-          continue;
-        }
-        // 情况3: <div> 中有实际内容 — 将 <div> 解包为内联内容 + <br>
-        // Android WebView 会把每一行文字包在 <div> 中，如:
-        //   第一行文字<div>第二行</div><div>第三行</div>
-        // 这会导致导出时每行被渲染为独立块级元素，行距变大。
-        // 解包后变为: 第一行文字<br>第二行<br>第三行，行距由 line-height 统一控制。
-        normalizeDivBr(el); // 先递归处理内部嵌套的 div
-        const fragment = document.createDocumentFragment();
-        // 如果前一个兄弟节点不是 <br>，在解包前插入 <br> 保持换行
-        const prevSibling = el.previousSibling;
-        if (prevSibling && !(prevSibling.nodeType === Node.ELEMENT_NODE && (prevSibling as HTMLElement).tagName?.toLowerCase() === 'br')) {
-          fragment.appendChild(document.createElement('br'));
-        }
+      if (hasPrevContent) {
+        fragment.appendChild(document.createElement('br'));
+      }
+
+      if (!isDivEmpty(el)) {
+        // 有内容的 <div> → 解包子节点
         while (el.firstChild) {
           fragment.appendChild(el.firstChild);
         }
-        parent.replaceChild(fragment, el);
       }
+      // 空 <div> → 不添加任何内容，前面的 <br> 本身就表示空行
+
+      parent.replaceChild(fragment, el);
     }
   };
 
-  normalizeDivBr(temp);
+  flattenDivs(temp);
 
   // 判断节点是否在视觉上为空（用于判断末尾空行）
   const isEmpty = (node: Node): boolean => {
