@@ -56,6 +56,28 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   const displaySecondaryText = useMemo(() => isExporting ? getCleanContent(secondaryBodyText) : secondaryBodyText, [secondaryBodyText, isExporting]);
 
   useEffect(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 200;
+    canvas.height = 200;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const idata = ctx.createImageData(canvas.width, canvas.height);
+    const buffer32 = new Uint32Array(idata.data.buffer);
+    const len = buffer32.length;
+
+    for (let i = 0; i < len; i++) {
+        if (Math.random() < 0.5) {
+            buffer32[i] = 0x08000000; 
+        }
+    }
+    ctx.putImageData(idata, 0, 0);
+    setNoiseDataUrl(canvas.toDataURL());
+  }, []);
+
+  useEffect(() => {
     const el = editableRef.current;
     if (el && el.innerHTML !== displayBodyText && !isComposing.current) {
       el.innerHTML = displayBodyText;
@@ -251,7 +273,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     if (layoutStyle === 'minimal') {
       return (
         <div 
-          className={`relative z-10 p-6 w-full flex flex-col justify-between ${isLongText ? (isExporting ? 'flex-none' : 'flex-auto') : 'h-full overflow-hidden'}`}
+          className={`relative z-10 p-6 w-full flex flex-col ${isExporting ? '' : 'justify-between'} ${isLongText ? (isExporting ? 'flex-none' : 'flex-auto') : 'h-full overflow-hidden'}`}
         >
           {renderTechDecorations()}
 
@@ -262,12 +284,16 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                     <span className="text-[9px] font-mono tracking-widest font-bold" style={{ color: textColor }}>SYSTEM_NORMAL</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="h-1 w-12 bg-current opacity-20" style={{ color: textColor }}>
-                      <div className="h-full w-2/3 bg-current" style={{ color: textColor }}></div>
-                    </div>
-                    <span className="text-[9px] font-mono opacity-60 tracking-widest" style={{ color: textColor }}>
-                      REC-{Math.floor(Math.random() * 9999)}
+                    <span className="text-[8px] font-mono tracking-wide opacity-70 font-semibold" style={{ color: textColor }}>
+                      {readingStats.length}字 · {readingStats.minutes}min
                     </span>
+                    <div className="w-px h-2.5 bg-current opacity-20" style={{ color: textColor }}></div>
+                    <span className="text-[8px] font-mono opacity-50 tracking-widest" style={{ color: textColor }}>
+                      REC
+                    </span>
+                    <div className="h-1 w-8 bg-current opacity-15 rounded-full overflow-hidden" style={{ color: textColor }}>
+                      <div className="h-full w-2/3 bg-current rounded-full" style={{ color: textColor }}></div>
+                    </div>
                 </div>
               </div>
 
@@ -589,6 +615,17 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
           opacity: 0.6
         }}
       />
+      
+      {noiseDataUrl && (
+        <div 
+          className="absolute inset-0 pointer-events-none z-0 opacity-100 w-full h-full"
+          style={{ 
+            backgroundImage: `url(${noiseDataUrl})`,
+            backgroundRepeat: 'repeat',
+            mixBlendMode: 'normal' 
+          }}
+        />
+      )}
 
       {layoutStyle !== 'duality' && (
         <div 
