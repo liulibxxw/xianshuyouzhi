@@ -163,27 +163,27 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleResize = () => {
-        // 长文模式下键盘弹起时（正在编辑正文），不重新计算缩放
-        // 避免编辑时预览反复跳动缩放
-        if (state.mode === 'long-text' && keyboardHeight > 0) return;
-
         if (previewContainerRef.current) {
             const container = previewContainerRef.current;
             const availableW = container.clientWidth - 48; 
-            const availableH = container.clientHeight - (state.mode === 'cover' ? 64 : 0);
             const targetW = 400;
-            const targetH = state.mode === 'cover' ? 440 : 500;
-            const scaleW = availableW / targetW;
-            const scaleH = availableH / targetH;
-            let finalScale = Math.min(scaleW, scaleH);
-            setPreviewScale(Math.min(finalScale, 1));
+            if (state.mode === 'long-text') {
+              // 长文模式：只根据宽度缩放，不考虑高度，避免编辑时预览形变
+              setPreviewScale(Math.min(availableW / targetW, 1));
+            } else {
+              const availableH = container.clientHeight - 64;
+              const targetH = 440;
+              const scaleW = availableW / targetW;
+              const scaleH = availableH / targetH;
+              setPreviewScale(Math.min(scaleW, scaleH, 1));
+            }
         }
     };
     window.addEventListener('resize', handleResize);
     handleResize();
     setTimeout(handleResize, 50);
     return () => window.removeEventListener('resize', handleResize);
-  }, [state.mode, activeTab, state.layoutStyle, keyboardHeight]);
+  }, [state.mode, activeTab, state.layoutStyle]);
 
   const handleStateChange = useCallback((patch: Partial<CoverState>) => {
     setState(prev => {

@@ -198,21 +198,26 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleResize = () => {
         if (previewContainerRef.current) {
-            const width = previewContainerRef.current.clientWidth;
-            if (width < 432) {
-                setPreviewScale((width - 32) / 400);
+            const container = previewContainerRef.current;
+            const availableW = container.clientWidth - 48; 
+            const targetW = 400;
+            if (state.mode === 'long-text') {
+              // Long-text mode: scale by width only, avoid height-based deformation
+              setPreviewScale(Math.min(availableW / targetW, 1));
             } else {
-                setPreviewScale(1);
+              const availableH = container.clientHeight - 64;
+              const targetH = 440;
+              const scaleW = availableW / targetW;
+              const scaleH = availableH / targetH;
+              setPreviewScale(Math.min(scaleW, scaleH, 1));
             }
         }
     };
-
     window.addEventListener('resize', handleResize);
     handleResize();
-    setTimeout(handleResize, 100);
-
+    setTimeout(handleResize, 50);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [state.mode]);
 
   const handleStateChange = useCallback((newState: Partial<CoverState>) => {
     setState(prev => ({ ...prev, ...newState }));
