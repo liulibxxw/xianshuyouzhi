@@ -414,7 +414,7 @@ const App: React.FC = () => {
       const fontCss = await getEmbedFontCSS();
       const exportOptions: any = { cacheBust: true, pixelRatio: 4, backgroundColor: state.backgroundColor, fontEmbedCSS: fontCss };
       if (state.mode === 'cover') { exportOptions.width = 400; exportOptions.height = 440; exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; }
-      else { exportOptions.width = 400; exportOptions.style = { width: '400px', maxWidth: 'none', transform: 'none', margin: '0' }; }
+      else { exportOptions.width = 400; exportOptions.style = { width: '400px', height: 'auto', maxWidth: 'none', transform: 'none', margin: '0' }; }
       
       const dataUrl = await toPng(previewRef.current, exportOptions);
       setExportImage(dataUrl);

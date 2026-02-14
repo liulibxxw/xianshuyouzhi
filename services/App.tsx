@@ -333,6 +333,7 @@ const App: React.FC = () => {
         exportOptions.width = 400;
          exportOptions.style = {
            width: '400px',
+           height: 'auto',
            maxWidth: 'none',
            transform: 'none',
            margin: '0',

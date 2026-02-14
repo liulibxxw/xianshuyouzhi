@@ -425,7 +425,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                 onCompositionStart={() => isComposing.current = true}
                 onCompositionEnd={() => isComposing.current = false}
                 suppressContentEditableWarning={true}
-                className={`${getBodyClasses()} px-2 w-full outline-none ${isLongText ? 'h-auto' : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
+                className={`${getBodyClasses()} px-2 w-full outline-none ${isLongText ? `h-auto overflow-visible ${isExporting ? '' : 'min-h-[100px]'}` : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
                 style={{ color: textColor }}
               />
           </div>
@@ -465,7 +465,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     if (layoutStyle === 'duality') {
       return (
         <div key="layout-duality" className={`relative z-10 w-full flex flex-col ${flexGrowClass} ${minHeightClass}`}>
-            <div className={`flex flex-col relative px-[10px] py-4 ${isLongText ? 'min-h-[300px]' : 'flex-1 h-1/2'} overflow-hidden ${minHeightClass}`}>
+            <div className={`flex flex-col relative px-[10px] py-4 ${isLongText ? (isExporting ? '' : 'min-h-[300px]') : 'flex-1 h-1/2'} overflow-hidden ${minHeightClass}`}>
                 <div className="absolute -left-6 bottom-0 text-[9rem] font-bold opacity-[0.06] pointer-events-none leading-none z-0 font-serif-sc select-none" style={{ color: textColor }}>01</div>
                 <div className="shrink-0 flex justify-between items-start z-10 mb-2 min-h-[50px] gap-2">
                      <div className="flex flex-col items-start gap-1 mt-1 z-10">
@@ -495,7 +495,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                  <div className="absolute top-0 left-0 w-full h-[40px] -translate-y-1/2" style={{ background: `linear-gradient(to bottom right, transparent 49%, ${textColor} 49%, ${textColor} 51%, transparent 51%)` }}></div>
                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-2 border border-current shadow-sm" style={{ color: textColor }}><div className="w-2 h-2 rounded-full bg-current" style={{ color: accentColor }}></div></div>
             </div>
-            <div className={`flex flex-col relative px-[10px] py-4 ${isLongText ? 'min-h-[300px]' : 'flex-1 h-1/2'} ${minHeightClass}`}>
+            <div className={`flex flex-col relative px-[10px] py-4 ${isLongText ? (isExporting ? '' : 'min-h-[300px]') : 'flex-1 h-1/2'} ${minHeightClass}`}>
                 <div className="absolute -right-6 -top-4 text-[9rem] font-bold opacity-[0.06] pointer-events-none leading-none z-0 font-serif-sc select-none" style={{ color: textColor }}>02</div>
                 <div className="absolute left-0 right-0 bottom-0 -z-10" style={{ top: '-20px', background: `linear-gradient(to bottom right, transparent 49.5%, ${accentColor} 49.5%) top center / 100% 40px no-repeat, linear-gradient(${accentColor}, ${accentColor}) top 40px center / 100% calc(100% - 40px) no-repeat` }} />
                 <div className={`relative ${flexGrowClass} cursor-text overflow-hidden pl-0 z-10 ${minHeightClass} mt-2`} onClick={(e) => handleContainerClick(e, secondaryEditableRef)}>
@@ -578,7 +578,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                   onCompositionStart={() => isComposing.current = true}
                   onCompositionEnd={() => isComposing.current = false}
                   suppressContentEditableWarning={true}
-                  className={`${getBodyClasses()} opacity-90 w-full outline-none`}
+                  className={`${getBodyClasses()} opacity-90 w-full outline-none ${isLongText ? `h-auto overflow-visible ${isExporting ? '' : 'min-h-[100px]'}` : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
                   style={{ color: textColor }}
                 />
             </div>
