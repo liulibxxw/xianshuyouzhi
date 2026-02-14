@@ -456,17 +456,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
           opacity: 0.6
         }}
       />
-      
-      {noiseDataUrl && (
-        <div 
-          className="absolute inset-0 pointer-events-none z-0 opacity-100 w-full h-full"
-          style={{ 
-            backgroundImage: `url(${noiseDataUrl})`,
-            backgroundRepeat: 'repeat',
-            mixBlendMode: 'normal' 
-          }}
-        />
-      )}
 
       <div 
          className="absolute inset-0 pointer-events-none z-0"

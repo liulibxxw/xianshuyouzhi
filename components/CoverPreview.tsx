@@ -56,28 +56,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   const displaySecondaryText = useMemo(() => isExporting ? getCleanContent(secondaryBodyText) : secondaryBodyText, [secondaryBodyText, isExporting]);
 
   useEffect(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 200;
-    canvas.height = 200;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const idata = ctx.createImageData(canvas.width, canvas.height);
-    const buffer32 = new Uint32Array(idata.data.buffer);
-    const len = buffer32.length;
-
-    for (let i = 0; i < len; i++) {
-        if (Math.random() < 0.5) {
-            buffer32[i] = 0x08000000; 
-        }
-    }
-    ctx.putImageData(idata, 0, 0);
-    setNoiseDataUrl(canvas.toDataURL());
-  }, []);
-
-  useEffect(() => {
     const el = editableRef.current;
     if (el && el.innerHTML !== displayBodyText && !isComposing.current) {
       el.innerHTML = displayBodyText;
@@ -611,17 +589,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
           opacity: 0.6
         }}
       />
-      
-      {noiseDataUrl && (
-        <div 
-          className="absolute inset-0 pointer-events-none z-0 opacity-100 w-full h-full"
-          style={{ 
-            backgroundImage: `url(${noiseDataUrl})`,
-            backgroundRepeat: 'repeat',
-            mixBlendMode: 'normal' 
-          }}
-        />
-      )}
 
       {layoutStyle !== 'duality' && (
         <div 
