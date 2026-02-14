@@ -112,7 +112,22 @@ const App: React.FC = () => {
   const [presets, setPresets] = useState<ContentPreset[]>(() => {
     try {
       const saved = localStorage.getItem('coverPresets_v3');
-      return saved ? JSON.parse(saved) : DEFAULT_PRESETS;
+      if (saved) {
+        const parsed: ContentPreset[] = JSON.parse(saved);
+        const defaultIds = new Set(DEFAULT_PRESETS.map(p => p.id));
+        const merged = parsed.map(p => {
+          if (defaultIds.has(p.id)) {
+            const def = DEFAULT_PRESETS.find(d => d.id === p.id)!;
+            return { ...def };
+          }
+          return p;
+        });
+        for (const def of DEFAULT_PRESETS) {
+          if (!merged.find(p => p.id === def.id)) merged.push({ ...def });
+        }
+        return merged;
+      }
+      return DEFAULT_PRESETS;
     } catch {
       return DEFAULT_PRESETS;
     }
@@ -227,8 +242,8 @@ const App: React.FC = () => {
       ...prev,
       title: preset.title,
       subtitle: preset.subtitle,
-      bodyText: preset.bodyText || prev.bodyText,
-      secondaryBodyText: preset.secondaryBodyText || prev.secondaryBodyText || '',
+      bodyText: preset.bodyText ?? '',
+      secondaryBodyText: preset.secondaryBodyText ?? '',
       category: preset.category,
       author: preset.author
     }));

@@ -21,6 +21,9 @@
             },
             fontFamily: {
               'serif-sc': ['"Noto Serif SC"', 'serif'],
+              'sans-sc': ['"Noto Serif SC"', 'serif'],
+              'bold-sc': ['"Noto Serif SC"', 'serif'],
+              'jianghu': ['"Noto Serif SC"', 'serif'],
               'serif': ['"Noto Serif SC"', 'serif'],
               'sans': ['"Noto Serif SC"', 'serif'],
             },
@@ -44,6 +47,7 @@
       
       html {
         font-size: 16px;
+        font-family: var(--font-main) !important;
         -webkit-text-size-adjust: none !important;
         text-size-adjust: none !important;
         height: 100%;
@@ -65,10 +69,16 @@
         -ms-overflow-style: none;
         scrollbar-width: none;
         box-sizing: border-box;
+        font-family: inherit;
       }
       
-      h1, h2, h3, p, div, span, input, textarea, [contenteditable], [contenteditable] * {
+      h1, h2, h3, h4, h5, h6, p, div, span, input, textarea, button, a, label, select, option, li, ul, ol, nav, section, article, aside, header, footer, main, [contenteditable], [contenteditable] * {
         font-family: var(--font-main) !important;
+      }
+
+      /* 确保 Tailwind 注入的基础样式不会覆盖字体 */
+      *, *::before, *::after {
+        font-family: inherit;
       }
 
       #root {
@@ -109,6 +119,12 @@
 }
 </script>
 <link rel="stylesheet" href="/index.css">
+<!-- 全局字体强制覆盖：必须在 Tailwind CDN 注入之后加载，确保优先级最高 -->
+<style id="font-override">
+  html, body, #root, #root * {
+    font-family: "Noto Serif SC", serif !important;
+  }
+</style>
 </head>
   <body>
     <div id="root"></div>

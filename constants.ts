@@ -54,8 +54,8 @@ export const DEFAULT_PRESETS = [
     name: '叠加态',
     title: "叠加态",
     subtitle: "生与死共用一副咽喉，同吐一口气息",
-    bodyText: "这里是事物的表象...",
-    secondaryBodyText: "这里是事物的里象...",
+    bodyText: "",
+    secondaryBodyText: "",
     category: "文稿、二象性鉴",
     author: "琉璃"
   },

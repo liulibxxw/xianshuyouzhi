@@ -88,7 +88,22 @@ const App: React.FC = () => {
   const [presets, setPresets] = useState<ContentPreset[]>(() => {
     try {
       const saved = localStorage.getItem('coverPresets_v3');
-      return saved ? JSON.parse(saved) : DEFAULT_PRESETS;
+      if (saved) {
+        const parsed: ContentPreset[] = JSON.parse(saved);
+        const defaultIds = new Set(DEFAULT_PRESETS.map(p => p.id));
+        const merged = parsed.map(p => {
+          if (defaultIds.has(p.id)) {
+            const def = DEFAULT_PRESETS.find(d => d.id === p.id)!;
+            return { ...def };
+          }
+          return p;
+        });
+        for (const def of DEFAULT_PRESETS) {
+          if (!merged.find(p => p.id === def.id)) merged.push({ ...def });
+        }
+        return merged;
+      }
+      return DEFAULT_PRESETS;
     } catch { return DEFAULT_PRESETS; }
   });
   const [advancedPresets, setAdvancedPresets] = useState<AdvancedPreset[]>(() => {
@@ -204,16 +219,14 @@ const App: React.FC = () => {
   };
 
   const handleLoadPreset = (preset: ContentPreset) => {
-    const isDualityPreset = preset.id === 'preset_duality' || (preset.category && preset.category.includes('二象性'));
     setState(prev => ({
         ...prev,
         title: preset.title,
         subtitle: preset.subtitle,
-        layoutStyle: isDualityPreset ? 'duality' : prev.layoutStyle,
-        bodyText: preset.bodyText || prev.bodyText,
-        secondaryBodyText: preset.secondaryBodyText || prev.secondaryBodyText,
-        dualityBodyText: preset.dualityBodyText || prev.dualityBodyText,
-        dualitySecondaryBodyText: preset.dualitySecondaryBodyText || prev.dualitySecondaryBodyText,
+        bodyText: preset.bodyText ?? '',
+        secondaryBodyText: preset.secondaryBodyText ?? '',
+        dualityBodyText: preset.dualityBodyText ?? prev.dualityBodyText,
+        dualitySecondaryBodyText: preset.dualitySecondaryBodyText ?? prev.dualitySecondaryBodyText,
         category: preset.category,
         author: preset.author
     }));
@@ -463,7 +476,7 @@ const App: React.FC = () => {
         <EditorControls state={effectivePreviewState} onChange={handleStateChange} presets={presets} onSavePreset={handleSavePreset} onDeletePreset={handleDeletePreset} onLoadPreset={handleLoadPreset} onExport={handleExport} activeTab={activeTab || 'style'} onTabChange={setActiveTab} isExporting={isExporting} advancedPresets={advancedPresets} onSaveAdvancedPreset={handleSaveAdvancedPreset} onDeleteAdvancedPreset={id => setAdvancedPresets(p => p.filter(x => x.id !== id))} onApplyAdvancedPreset={handleApplyAdvancedPreset} onFormatText={handleFormatText} />
       </div>
       <div className="flex-1 relative flex flex-col h-full overflow-hidden">
-        <div className="lg:hidden h-14 bg-white border-b border-gray-200 flex items-center justify-center px-4 shrink-0 z-20 flex-none"><span className="font-bold text-gray-800">衔书又止</span></div>
+        <div className="lg:hidden h-14 bg-white border-b border-gray-200 flex items-center justify-center px-4 shrink-0 z-20 flex-none"><span className="font-bold text-gray-800 font-serif-sc">衔书又止</span></div>
         <div className="flex-1 relative overflow-hidden bg-gray-100/50 flex flex-col">
             <div ref={previewContainerRef} className="flex-1 relative overflow-hidden">
                <div className="absolute inset-0 overflow-y-auto overflow-x-hidden flex flex-col items-center custom-scrollbar">
@@ -489,13 +502,13 @@ const App: React.FC = () => {
                     {!activeTab && <RichTextToolbar visible={true} state={effectivePreviewState} onChange={handleStateChange} />}
                 </div>
                 <div className="h-16 bg-white border-t border-gray-100 flex items-center justify-around px-2 relative z-50 shrink-0">
-                      <button onClick={() => toggleMobileTab('drafts')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'drafts' ? 'text-purple-600' : 'text-gray-500'}`}><BookmarkIcon className="w-6 h-6" /><span className="text-[10px] font-bold">草稿</span></button>
-                      <button onClick={() => toggleMobileTab('style')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'style' ? 'text-purple-600' : 'text-gray-500'}`}><PaintBrushIcon className="w-6 h-6" /><span className="text-[10px] font-bold">风格</span></button>
-                      <button onClick={() => toggleMobileTab('presets')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'presets' ? 'text-purple-600' : 'text-gray-500'}`}><SparklesIcon className="w-6 h-6" /><span className="text-[10px] font-bold">预设</span></button>
+                      <button onClick={() => toggleMobileTab('drafts')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'drafts' ? 'text-purple-600' : 'text-gray-500'}`}><BookmarkIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">草稿</span></button>
+                      <button onClick={() => toggleMobileTab('style')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'style' ? 'text-purple-600' : 'text-gray-500'}`}><PaintBrushIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">风格</span></button>
+                      <button onClick={() => toggleMobileTab('presets')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'presets' ? 'text-purple-600' : 'text-gray-500'}`}><SparklesIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">预设</span></button>
                       <button ref={bgColorButtonRef} onClick={toggleBgPalette} className="w-12 h-12 rounded-full border-4 border-white shadow-lg -translate-y-4 bg-gradient-to-br from-rose-200 to-blue-200 flex items-center justify-center relative z-50" style={{ backgroundColor: state.backgroundColor }}><SwatchIcon className="w-6 h-6 text-white/80" /></button>
-                      <button onClick={() => toggleMobileTab('search')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'search' ? 'text-purple-600' : 'text-gray-500'}`}><MagnifyingGlassIcon className="w-6 h-6" /><span className="text-[10px] font-bold">搜索</span></button>
-                      <button onClick={handleModeToggle} className="flex flex-col items-center gap-1 text-gray-500 transition-colors w-14"><ArrowsRightLeftIcon className="w-6 h-6" /><span className="text-[10px] font-bold">{state.mode === 'cover' ? '长图' : '封面'}</span></button>
-                      <button onClick={() => toggleMobileTab('export')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'export' ? 'text-purple-600' : 'text-gray-500'}`}><ArrowDownTrayIcon className="w-6 h-6" /><span className="text-[10px] font-bold">导出</span></button>
+                      <button onClick={() => toggleMobileTab('search')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'search' ? 'text-purple-600' : 'text-gray-500'}`}><MagnifyingGlassIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">搜索</span></button>
+                      <button onClick={handleModeToggle} className="flex flex-col items-center gap-1 text-gray-500 transition-colors w-14"><ArrowsRightLeftIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">{state.mode === 'cover' ? '长图' : '封面'}</span></button>
+                      <button onClick={() => toggleMobileTab('export')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'export' ? 'text-purple-600' : 'text-gray-500'}`}><ArrowDownTrayIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">导出</span></button>
                 </div>
             </div>
         </div>
