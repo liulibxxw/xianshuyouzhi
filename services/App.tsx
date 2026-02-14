@@ -244,8 +244,8 @@ const App: React.FC = () => {
       ...prev,
       title: preset.title,
       subtitle: preset.subtitle,
-      bodyText: preset.bodyText ?? '',
-      secondaryBodyText: preset.secondaryBodyText ?? '',
+      bodyText: preset.bodyText || prev.bodyText,
+      secondaryBodyText: preset.secondaryBodyText || prev.secondaryBodyText,
       category: preset.category,
       author: preset.author
     }));
