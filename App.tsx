@@ -88,10 +88,30 @@ const App: React.FC = () => {
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [showBgColorPalette, setShowBgColorPalette] = useState(false);
   const [previewScale, setPreviewScale] = useState(1);
+  const [previewMinHeight, setPreviewMinHeight] = useState(0);
+  const [scaleMarginBottom, setScaleMarginBottom] = useState(0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const previewRef = useRef<HTMLDivElement>(null);
   const bgColorPaletteRef = useRef<HTMLDivElement>(null);
+
+  // 监听 CoverPreview 实际高度，计算 scale 导致的布局多余空间
+  // transform:scale 不改变布局尺寸，用负 margin-bottom 收回多余占位
+  useEffect(() => {
+    if (state.mode !== 'long-text' || !previewRef.current) {
+      setScaleMarginBottom(0);
+      return;
+    }
+    const el = previewRef.current;
+    const update = () => {
+      const h = el.offsetHeight;
+      setScaleMarginBottom(h * (1 - previewScale));
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    update();
+    return () => observer.disconnect();
+  }, [state.mode, previewScale]);
   const bgColorButtonRef = useRef<HTMLButtonElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
@@ -136,15 +156,15 @@ const App: React.FC = () => {
             const container = previewContainerRef.current;
             const availableW = container.clientWidth - 48; 
             const targetW = 400;
+            const scale = Math.min(availableW / targetW, 1);
+            setPreviewScale(scale);
+            // 长文模式：计算容器可视高度，让预览恰好占满导航栏到底部工具栏的间隔
             if (state.mode === 'long-text') {
-              // 长文模式：只根据宽度缩放，不考虑高度，避免编辑时预览形变
-              setPreviewScale(Math.min(availableW / targetW, 1));
+              const containerH = container.clientHeight;
+              // 缩放后的预览最小高度 = 容器高度 / scale
+              setPreviewMinHeight(Math.floor(containerH / scale));
             } else {
-              const availableH = container.clientHeight - 64;
-              const targetH = 440;
-              const scaleW = availableW / targetW;
-              const scaleH = availableH / targetH;
-              setPreviewScale(Math.min(scaleW, scaleH, 1));
+              setPreviewMinHeight(0);
             }
         }
     };
@@ -496,9 +516,9 @@ const App: React.FC = () => {
         <div className="flex-1 relative overflow-hidden bg-gray-100/50 flex flex-col">
             <div ref={previewContainerRef} className="flex-1 relative overflow-hidden">
                <div className="absolute inset-0 overflow-y-auto overflow-x-hidden flex flex-col items-center custom-scrollbar">
-                  <div className={`flex-1 flex justify-center w-full min-h-full ${state.mode === 'cover' ? 'items-center p-4 lg:p-8' : 'items-start pt-0 pb-24 px-4 lg:pt-0'}`}>
-                    <div className="transition-transform duration-300 relative flex justify-center" style={{ transform: `scale(${previewScale})`, transformOrigin: state.mode === 'cover' ? 'center center' : 'top center', width: '400px' }}>
-                      <CoverPreview ref={previewRef} state={effectivePreviewState} onBodyTextChange={val => handleStateChange({ bodyText: val })} onSecondaryBodyTextChange={val => handleStateChange({ secondaryBodyText: val })} isExporting={isExporting} />
+                  <div className={`flex justify-center w-full ${state.mode === 'cover' ? 'flex-1 items-center p-4 lg:p-8 min-h-full' : 'items-start pt-0 px-4 lg:pt-0'}`}>
+                    <div className="transition-transform duration-300 relative flex justify-center" style={{ transform: `scale(${previewScale})`, transformOrigin: state.mode === 'cover' ? 'center center' : 'top center', width: '400px', marginBottom: state.mode === 'long-text' && scaleMarginBottom > 0 ? `-${scaleMarginBottom}px` : undefined }}>
+                      <CoverPreview ref={previewRef} state={effectivePreviewState} onBodyTextChange={val => handleStateChange({ bodyText: val })} onSecondaryBodyTextChange={val => handleStateChange({ secondaryBodyText: val })} isExporting={isExporting} longTextMinHeight={previewMinHeight} />
                     </div>
                   </div>
                </div>

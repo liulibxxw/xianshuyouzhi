@@ -418,7 +418,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
       className={`relative shadow-2xl antialiased overflow-hidden w-[400px] shrink-0 ${
         isLongText 
           ? 'h-auto min-h-[600px] md:min-h-[712px]' 
-          : 'h-[500px]'
+          : 'h-[440px]'
       }`}
       style={{ 
         backgroundColor: backgroundColor,

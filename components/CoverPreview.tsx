@@ -8,9 +8,10 @@ interface CoverPreviewProps {
   onBodyTextChange: (text: string) => void;
   onSecondaryBodyTextChange: (text: string) => void;
   isExporting?: boolean;
+  longTextMinHeight?: number;
 }
 
-const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onBodyTextChange, onSecondaryBodyTextChange, isExporting = false }, ref) => {
+const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onBodyTextChange, onSecondaryBodyTextChange, isExporting = false, longTextMinHeight = 0 }, ref) => {
   const { 
     title, 
     subtitle, 
@@ -250,7 +251,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     if (layoutStyle === 'minimal') {
       return (
         <div 
-          className={`relative z-10 p-6 w-full flex flex-col ${isLongText ? 'flex-none' : 'h-full overflow-hidden justify-between'}`}
+          className={`relative z-10 p-6 w-full flex flex-col ${isLongText ? 'flex-1' : 'h-full overflow-hidden justify-between'}`}
         >
           {renderTechDecorations()}
 
@@ -332,7 +333,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
               </div>
           </div>
           
-          <div className="shrink-0 flex flex-col mt-2">
+          <div className="shrink-0 flex flex-col mt-auto pt-2">
               <div className="ml-6 flex gap-0.5 opacity-20 mb-2 shrink-0">
                   <div className="h-1 w-4 bg-current" style={{ color: textColor }}></div>
                   <div className="h-1 w-2 bg-current" style={{ color: textColor }}></div>
@@ -362,7 +363,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     if (layoutStyle === 'split') {
       return (
         <div 
-          className={`relative z-10 p-8 flex flex-col ${flexGrowClass}`}
+          className={`relative z-10 p-8 flex flex-col ${isLongText ? 'flex-1' : 'flex-1'}`}
         >
           {renderVintageDecorations()}
 
@@ -440,7 +441,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
 
     if (layoutStyle === 'duality') {
       return (
-        <div key="layout-duality" className={`relative z-10 w-full flex flex-col ${flexGrowClass} ${minHeightClass}`}>
+        <div key="layout-duality" className={`relative z-10 w-full flex flex-col ${isLongText ? 'flex-1' : 'flex-1'} ${minHeightClass}`}>
             <div className={`flex flex-col relative px-[10px] py-4 ${isLongText ? '' : 'flex-1 h-1/2'} overflow-hidden ${minHeightClass}`}>
                 <div className="absolute -left-6 bottom-0 text-[9rem] font-bold opacity-[0.06] pointer-events-none leading-none z-0 font-serif-sc select-none" style={{ color: textColor }}>01</div>
                 <div className="shrink-0 flex justify-between items-start z-10 mb-2 min-h-[50px] gap-2">
@@ -488,7 +489,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
 
     return (
       <div 
-        className={`relative z-10 p-6 flex flex-col ${flexGrowClass}`}
+        className={`relative z-10 p-6 flex flex-col ${isLongText ? 'flex-1' : 'flex-1'}`}
       >
         <div className="absolute top-0 right-0 w-1/2 h-full opacity-10" style={{ background: `linear-gradient(to left, ${accentColor}, transparent)` }}></div>
         <div className="absolute top-6 left-6 w-12 h-1 bg-current" style={{ color: textColor }}></div>
@@ -571,13 +572,15 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     );
   };
 
-  // 容器高度：封面模式固定500px，长文模式完全由内容撑开（无 min-h）
-  // 之前的 min-h-[600px] 是空白区域的直接原因——当内容不足600px时，
-  // 内部 flex-none 的子元素不会拉伸填充，剩余空间就变成了空白。
+  // 容器高度：封面模式固定440px（导出scale:4 → 1760px PNG），长文模式完全由内容撑开
   const containerHeightClass = useMemo(() => {
-      if (!isLongText) return 'h-[500px]';
+      if (!isLongText) return 'h-[440px]';
       return 'h-auto';
   }, [isLongText]);
+
+  // 长文模式下，如果传入了 longTextMinHeight，作为容器最小高度
+  // 这样底部装饰块会贴在可视区域底部
+  const containerMinHeight = isLongText && longTextMinHeight > 0 ? longTextMinHeight : undefined;
 
   return (
     <div 
@@ -585,6 +588,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
       className={`relative shadow-2xl antialiased overflow-hidden w-[400px] shrink-0 ${containerHeightClass}`}
       style={{
         ...renderingIsolation,
+        minHeight: containerMinHeight ? `${containerMinHeight}px` : undefined,
       }}
     >
       <div 

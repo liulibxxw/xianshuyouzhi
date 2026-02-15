@@ -140,10 +140,29 @@ const App: React.FC = () => {
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [showBgColorPalette, setShowBgColorPalette] = useState(false);
   const [previewScale, setPreviewScale] = useState(1);
+  const [previewMinHeight, setPreviewMinHeight] = useState(0);
+  const [scaleMarginBottom, setScaleMarginBottom] = useState(0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const previewRef = useRef<HTMLDivElement>(null);
   const bgColorPaletteRef = useRef<HTMLDivElement>(null);
+
+  // 监听 CoverPreview 实际高度，计算 scale 导致的布局多余空间
+  useEffect(() => {
+    if (state.mode !== 'long-text' || !previewRef.current) {
+      setScaleMarginBottom(0);
+      return;
+    }
+    const el = previewRef.current;
+    const update = () => {
+      const h = el.offsetHeight;
+      setScaleMarginBottom(h * (1 - previewScale));
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    update();
+    return () => observer.disconnect();
+  }, [state.mode, previewScale]);
   const bgColorButtonRef = useRef<HTMLButtonElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
@@ -201,15 +220,14 @@ const App: React.FC = () => {
             const container = previewContainerRef.current;
             const availableW = container.clientWidth - 48; 
             const targetW = 400;
+            const scale = Math.min(availableW / targetW, 1);
+            setPreviewScale(scale);
+            // 长文模式：计算容器可视高度，让预览恰好占满导航栏到底部工具栏的间隔
             if (state.mode === 'long-text') {
-              // Long-text mode: scale by width only, avoid height-based deformation
-              setPreviewScale(Math.min(availableW / targetW, 1));
+              const containerH = container.clientHeight;
+              setPreviewMinHeight(Math.floor(containerH / scale));
             } else {
-              const availableH = container.clientHeight - 64;
-              const targetH = 440;
-              const scaleW = availableW / targetW;
-              const scaleH = availableH / targetH;
-              setPreviewScale(Math.min(scaleW, scaleH, 1));
+              setPreviewMinHeight(0);
             }
         }
     };
@@ -415,13 +433,14 @@ const App: React.FC = () => {
                 className="flex-1 overflow-y-auto overflow-x-hidden flex justify-center custom-scrollbar items-start"
             >
                <div className="transition-all duration-300 w-full lg:w-auto p-0 lg:p-8 min-h-full lg:h-auto flex justify-center items-center">
-                  <div style={{ transform: `scale(${previewScale})`, transformOrigin: 'center center' }}>
+                  <div style={{ transform: `scale(${previewScale})`, transformOrigin: 'center center', marginBottom: state.mode === 'long-text' && scaleMarginBottom > 0 ? `-${scaleMarginBottom}px` : undefined }}>
                     <CoverPreview 
                         ref={previewRef}
                         state={state}
                         onBodyTextChange={(val) => handleStateChange({ bodyText: val })}
                         onSecondaryBodyTextChange={(val) => handleStateChange({ secondaryBodyText: val })}
                         isExporting={isExporting}
+                        longTextMinHeight={previewMinHeight}
                     />
                   </div>
                </div>
