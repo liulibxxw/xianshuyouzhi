@@ -571,10 +571,12 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     );
   };
 
-  // html2canvas 直接截取 DOM 当前状态，不需要导出时特殊处理高度
+  // 容器高度：封面模式固定500px，长文模式完全由内容撑开（无 min-h）
+  // 之前的 min-h-[600px] 是空白区域的直接原因——当内容不足600px时，
+  // 内部 flex-none 的子元素不会拉伸填充，剩余空间就变成了空白。
   const containerHeightClass = useMemo(() => {
       if (!isLongText) return 'h-[500px]';
-      return 'h-auto min-h-[600px] md:min-h-[712px]';
+      return 'h-auto';
   }, [isLongText]);
 
   return (
