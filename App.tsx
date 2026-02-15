@@ -408,16 +408,20 @@ const App: React.FC = () => {
     if (filename) setExportFilename(filename);
     setShowExportModal(true);
 
-    // 关键修复：导出前移除父级的 CSS transform: scale()。
-    // html-to-image 在克隆 DOM 时会基于 getBoundingClientRect 计算尺寸，
-    // 父级的 scale 变换会导致计算出的尺寸被缩小，从而导致：
-    //   - 字体在导出图片中变小（一行能放的字数变少）
-    //   - 元素坐标微妙偏移（标签上下位移）
-    // 这才是之前 APK 环境下导出字体偏小的真正根因。
-    // 关键修复：导出前移除父级的 CSS transform: scale()。
-    // html-to-image 克隆 DOM 时基于 getBoundingClientRect 计算尺寸，
-    // 父级 scale 变换会导致计算出的尺寸被缩小，造成字体偏小。
-    // 同时需要强制浏览器 reflow，确保尺寸计算已更新。
+    // ===== 核心修复：彻底解决 html-to-image 在缩放环境下的字号偏差 =====
+    //
+    // 问题根因（来自 html-to-image 源码分析）：
+    // cloneCSSStyle() 对 **每个** 子节点调用 window.getComputedStyle(原始节点)
+    // 将计算后的样式逐属性复制到克隆体。如果在 transform:scale() 下读取，
+    // 浏览器可能对子像素值做不同的舍入（尤其 Android WebView），
+    // 导致克隆体中文本排版宽度与实际不同 —— 表现为"一行少一个字"。
+    //
+    // 解决方案：
+    // 1. 移除父级 scale 变换
+    // 2. 等待两个 rAF + 100ms，确保浏览器完成完整 reflow + repaint
+    //    让所有子元素的 computedStyle 在 scale=1 下被重新计算
+    // 3. 此时再调用 toPng，cloneCSSStyle 读到的就是 1:1 的正确样式
+
     const scaleWrapper = previewRef.current.parentElement;
     const savedTransform = scaleWrapper?.style.transform || '';
     const savedTransformOrigin = scaleWrapper?.style.transformOrigin || '';
@@ -425,12 +429,22 @@ const App: React.FC = () => {
       scaleWrapper.style.transform = 'none';
       scaleWrapper.style.transformOrigin = 'top left';
     }
-    // 强制浏览器 reflow，确保 getBoundingClientRect 返回无缩放的真实尺寸
-    void previewRef.current.getBoundingClientRect();
+
+    // 双重 rAF + setTimeout 确保浏览器完成完整的 reflow + repaint 周期
+    // 第一个 rAF：进入下一帧
+    // 第二个 rAF：确保上一帧的样式计算已完成
+    // setTimeout：额外留出 WebView 异步合成器的缓冲
+    await new Promise<void>(resolve => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(resolve, 100);
+        });
+      });
+    });
 
     try {
       await document.fonts.ready; 
-      await new Promise(r => setTimeout(r, 300)); 
+      await new Promise(r => setTimeout(r, 200)); 
       const fontCss = await getEmbedFontCSS();
 
       const el = previewRef.current;
@@ -443,8 +457,7 @@ const App: React.FC = () => {
         fontEmbedCSS: fontCss,
         width: 400,
         height: state.mode === 'cover' ? 500 : Math.ceil(elRect.height),
-        // 强制克隆体使用精确的 400px 宽度，确保 foreignObject 内
-        // 文本排版与预览完全一致（一行的字数不变）
+        // 强制克隆体根节点使用精确的 400px 宽度
         style: {
           width: '400px',
           minWidth: '400px',
