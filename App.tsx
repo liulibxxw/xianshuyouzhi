@@ -25,7 +25,7 @@ import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 
-const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@400;700;900&family=ZCOOL+QingKe+HuangYou&display=swap";
+const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;700;900&display=swap";
 
 async function getEmbedFontCSS() {
     try {
@@ -408,22 +408,16 @@ const App: React.FC = () => {
     if (filename) setExportFilename(filename);
     setShowExportModal(true);
 
-    // 第一步：等待 React 完成 isExporting=true 的重渲染。
-    // 这确保 CoverPreview 中的 getCleanContent() 已清理文本、
-    // contentEditable 已变为 false，DOM 已稳定。
-    // 如果在 React 重渲染前就移除 scale，会导致一瞬间
-    // 旧内容在 1:1 尺寸下重排，产生字数差异。
-    await new Promise<void>(resolve => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setTimeout(resolve, 100);
-        });
-      });
-    });
-
-    // 第二步：移除父级 scale 变换。
-    // html-to-image 基于 getBoundingClientRect 计算尺寸，
-    // scale 会让它拿到缩放后的尺寸，导致导出图片中字体偏小。
+    // 关键修复：导出前移除父级的 CSS transform: scale()。
+    // html-to-image 在克隆 DOM 时会基于 getBoundingClientRect 计算尺寸，
+    // 父级的 scale 变换会导致计算出的尺寸被缩小，从而导致：
+    //   - 字体在导出图片中变小（一行能放的字数变少）
+    //   - 元素坐标微妙偏移（标签上下位移）
+    // 这才是之前 APK 环境下导出字体偏小的真正根因。
+    // 关键修复：导出前移除父级的 CSS transform: scale()。
+    // html-to-image 克隆 DOM 时基于 getBoundingClientRect 计算尺寸，
+    // 父级 scale 变换会导致计算出的尺寸被缩小，造成字体偏小。
+    // 同时需要强制浏览器 reflow，确保尺寸计算已更新。
     const scaleWrapper = previewRef.current.parentElement;
     const savedTransform = scaleWrapper?.style.transform || '';
     const savedTransformOrigin = scaleWrapper?.style.transformOrigin || '';
@@ -431,31 +425,34 @@ const App: React.FC = () => {
       scaleWrapper.style.transform = 'none';
       scaleWrapper.style.transformOrigin = 'top left';
     }
+    // 强制浏览器 reflow，确保 getBoundingClientRect 返回无缩放的真实尺寸
+    void previewRef.current.getBoundingClientRect();
 
     try {
       await document.fonts.ready; 
-      // 等待移除 scale 后的布局稳定
       await new Promise(r => setTimeout(r, 300)); 
       const fontCss = await getEmbedFontCSS();
 
       const el = previewRef.current;
+      const elRect = el.getBoundingClientRect();
+
       const exportOptions: any = {
         cacheBust: true,
         pixelRatio: 4,
         backgroundColor: state.backgroundColor,
         fontEmbedCSS: fontCss,
+        width: 400,
+        height: state.mode === 'cover' ? 500 : Math.ceil(elRect.height),
+        // 强制克隆体使用精确的 400px 宽度，确保 foreignObject 内
+        // 文本排版与预览完全一致（一行的字数不变）
         style: {
+          width: '400px',
+          minWidth: '400px',
+          maxWidth: '400px',
           transform: 'none',
           transformOrigin: 'top left',
         },
       };
-
-      if (state.mode === 'cover') {
-        exportOptions.width = 400;
-        exportOptions.height = 500;
-      } else {
-        exportOptions.width = 400;
-      }
 
       const dataUrl = await toPng(el, exportOptions);
       setExportImage(dataUrl);
@@ -530,7 +527,7 @@ const App: React.FC = () => {
         <div className="flex-1 relative overflow-hidden bg-gray-100/50 flex flex-col">
             <div ref={previewContainerRef} className="flex-1 relative overflow-hidden">
                <div className="absolute inset-0 overflow-y-auto overflow-x-hidden flex flex-col items-center custom-scrollbar">
-                  <div className={`flex justify-center w-full ${state.mode === 'cover' ? 'flex-1 min-h-full items-center p-4 lg:p-8' : 'items-start pt-0 pb-24 px-4 lg:pt-0'}`}>
+                  <div className={`flex-1 flex justify-center w-full min-h-full ${state.mode === 'cover' ? 'items-center p-4 lg:p-8' : 'items-start pt-0 pb-24 px-4 lg:pt-0'}`}>
                     <div className="transition-transform duration-300 relative flex justify-center" style={{ transform: `scale(${previewScale})`, transformOrigin: state.mode === 'cover' ? 'center center' : 'top center', width: '400px' }}>
                       <CoverPreview ref={previewRef} state={effectivePreviewState} onBodyTextChange={val => handleStateChange({ bodyText: val })} onSecondaryBodyTextChange={val => handleStateChange({ secondaryBodyText: val })} isExporting={isExporting} />
                     </div>
