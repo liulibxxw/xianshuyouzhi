@@ -109,10 +109,8 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
 
   const isLongText = mode === 'long-text';
   
-  // 核心修复：长文模式统一使用 flex-none，让容器高度完全由内容决定，
-  // 不再让 flex-auto (flex-grow:1) 去填充 min-h 带来的多余空间，
-  // 从而消除文本末尾到底部装饰条之间的异常空白区域。
-  // 封面模式仍用 flex-1 填满固定高度。
+  // 长文模式使用 flex-none，让容器高度完全由内容决定，不拉伸填充
+  // 封面模式使用 flex-1，在固定高度容器中均分空间
   const flexGrowClass = isLongText ? 'flex-none' : 'flex-1';
   const minHeightClass = isLongText ? '' : 'min-h-0';
 
@@ -252,7 +250,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     if (layoutStyle === 'minimal') {
       return (
         <div 
-          className={`relative z-10 p-6 w-full flex flex-col ${isExporting ? '' : (isLongText ? '' : 'justify-between')} ${isLongText ? 'flex-none' : 'h-full overflow-hidden'}`}
+          className={`relative z-10 p-6 w-full flex flex-col ${isLongText ? 'flex-none' : 'h-full overflow-hidden justify-between'}`}
         >
           {renderTechDecorations()}
 
@@ -327,8 +325,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                       onCompositionStart={() => isComposing.current = true}
                       onCompositionEnd={() => isComposing.current = false}
                       suppressContentEditableWarning={true}
-                      // 核心修复：导出时长文模式移除 min-h-[100px]
-                      className={`${getBodyClasses()} w-full p-0 m-0 block opacity-90 transform-none ${isLongText ? 'h-auto overflow-visible min-h-[60px]' : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
+                      className={`${getBodyClasses()} w-full p-0 m-0 block opacity-90 transform-none ${isLongText ? 'h-auto overflow-visible' : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
                       style={{ color: textColor }}
                     />
                 </div>
@@ -404,7 +401,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                 onCompositionStart={() => isComposing.current = true}
                 onCompositionEnd={() => isComposing.current = false}
                 suppressContentEditableWarning={true}
-                className={`${getBodyClasses()} px-2 w-full outline-none ${isLongText ? 'h-auto overflow-visible min-h-[60px]' : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
+                className={`${getBodyClasses()} px-2 w-full outline-none ${isLongText ? 'h-auto overflow-visible' : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
                 style={{ color: textColor }}
               />
           </div>
@@ -557,7 +554,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                   onCompositionStart={() => isComposing.current = true}
                   onCompositionEnd={() => isComposing.current = false}
                   suppressContentEditableWarning={true}
-                  className={`${getBodyClasses()} opacity-90 w-full outline-none ${isLongText ? 'h-auto overflow-visible min-h-[60px]' : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
+                  className={`${getBodyClasses()} opacity-90 w-full outline-none ${isLongText ? 'h-auto overflow-visible' : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
                   style={{ color: textColor }}
                 />
             </div>
@@ -574,10 +571,10 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     );
   };
 
-  // 容器高度逻辑。长文模式使用 h-auto，不设 min-h 来避免 flex 填充产生空白
+  // html2canvas 直接截取 DOM 当前状态，不需要导出时特殊处理高度
   const containerHeightClass = useMemo(() => {
       if (!isLongText) return 'h-[500px]';
-      return 'h-auto';
+      return 'h-auto min-h-[600px] md:min-h-[712px]';
   }, [isLongText]);
 
   return (
@@ -586,7 +583,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
       className={`relative shadow-2xl antialiased overflow-hidden w-[400px] shrink-0 ${containerHeightClass}`}
       style={{
         ...renderingIsolation,
-        ...(isLongText ? { height: 'auto', minHeight: 'unset', maxHeight: 'unset', overflow: 'visible' } : {}),
       }}
     >
       <div 

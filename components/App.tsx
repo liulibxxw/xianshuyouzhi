@@ -302,18 +302,9 @@ const App: React.FC = () => {
     setExportImage(null);
     setShowExportModal(true);
 
-    // 保存当前 scale 并暂时重置为 1，避免 html-to-image
-    // 基于缩放后的 getBoundingClientRect 计算出错误的尺寸，
-    // 这是 APK 环境下导出图片字体变小的根本原因。
-    const savedScale = previewScale;
-    const scaleContainer = previewRef.current.parentElement;
-    if (scaleContainer) {
-      scaleContainer.style.transform = 'none';
-    }
-
     try {
       await document.fonts.ready;
-      await new Promise(resolve => setTimeout(resolve, 300)); 
+      await new Promise(resolve => setTimeout(resolve, 200)); 
 
       const fontCss = await getEmbedFontCSS();
 
@@ -326,10 +317,10 @@ const App: React.FC = () => {
 
       if (state.mode === 'cover') {
         exportOptions.width = 400;
-        exportOptions.height = 500; 
+        exportOptions.height = 440; 
         exportOptions.style = {
            width: '400px',
-           height: '500px',
+           height: '440px',
            maxWidth: 'none',
            maxHeight: 'none',
            transform: 'none',
@@ -354,10 +345,6 @@ const App: React.FC = () => {
       alert("导出失败，请重试");
       setShowExportModal(false);
     } finally {
-      // 恢复 scale 变换
-      if (scaleContainer) {
-        scaleContainer.style.transform = `scale(${savedScale})`;
-      }
       setIsExporting(false);
     }
   };

@@ -408,21 +408,57 @@ const App: React.FC = () => {
     if (filename) setExportFilename(filename);
     setShowExportModal(true);
 
-    // 始终使用 html-to-image (toPng) 进行导出，包括 Native 环境
+    // 关键修复：导出前移除父级的 CSS transform: scale()。
+    // html-to-image 在克隆 DOM 时会基于 getBoundingClientRect 计算尺寸，
+    // 父级的 scale 变换会导致计算出的尺寸被缩小，从而导致：
+    //   - 字体在导出图片中变小（一行能放的字数变少）
+    //   - 元素坐标微妙偏移（标签上下位移）
+    // 这才是之前 APK 环境下导出字体偏小的真正根因。
+    const scaleWrapper = previewRef.current.parentElement;
+    const savedTransform = scaleWrapper?.style.transform || '';
+    const savedTransformOrigin = scaleWrapper?.style.transformOrigin || '';
+    if (scaleWrapper) {
+      scaleWrapper.style.transform = 'none';
+      scaleWrapper.style.transformOrigin = 'top left';
+    }
+
     try {
-      await document.fonts.ready; await new Promise(r => setTimeout(r, 500)); 
+      await document.fonts.ready; 
+      await new Promise(r => setTimeout(r, 500)); 
       const fontCss = await getEmbedFontCSS();
-      const exportOptions: any = { cacheBust: true, pixelRatio: 4, backgroundColor: state.backgroundColor, fontEmbedCSS: fontCss };
-      if (state.mode === 'cover') { exportOptions.width = 400; exportOptions.height = 440; exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; }
-      else { exportOptions.width = 400; exportOptions.style = { width: '400px', height: 'auto', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0', overflow: 'visible', minHeight: 'unset' }; }
-      
-      const dataUrl = await toPng(previewRef.current, exportOptions);
+
+      const el = previewRef.current;
+      const exportOptions: any = {
+        cacheBust: true,
+        pixelRatio: 4,
+        backgroundColor: state.backgroundColor,
+        fontEmbedCSS: fontCss,
+        // 强制以元素的原始 1:1 尺寸导出，不受外部 transform 影响
+        style: {
+          transform: 'none',
+          transformOrigin: 'top left',
+        },
+      };
+
+      if (state.mode === 'cover') {
+        exportOptions.width = 400;
+        exportOptions.height = 500;
+      } else {
+        exportOptions.width = 400;
+      }
+
+      const dataUrl = await toPng(el, exportOptions);
       setExportImage(dataUrl);
     } catch (e) { 
         console.error("Export failed:", e); 
         showToast("导出失败，请重试", "error"); 
         setShowExportModal(false); 
     } finally { 
+        // 恢复缩放
+        if (scaleWrapper) {
+          scaleWrapper.style.transform = savedTransform;
+          scaleWrapper.style.transformOrigin = savedTransformOrigin;
+        }
         setIsExporting(false); 
     }
   };
