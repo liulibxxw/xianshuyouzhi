@@ -359,7 +359,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     if (layoutStyle === 'duality') {
       return (
         <div key="layout-duality" className={`relative z-10 w-full flex flex-col ${isLongText ? 'flex-1' : 'flex-1'} ${minHeightClass}`}>
-            <div className={`flex flex-col relative px-[10px] py-4 ${isLongText ? '' : 'flex-1 h-1/2'} overflow-hidden ${minHeightClass}`}>
+            <div className={`flex flex-col relative px-[10px] py-4 ${isLongText ? '' : 'flex-1 h-1/2'} ${isLongText ? 'overflow-visible' : 'overflow-hidden'} ${minHeightClass}`}>
                 <div className="absolute -left-6 bottom-0 text-[9rem] font-bold opacity-[0.06] pointer-events-none leading-none z-0 font-serif-sc select-none" style={{ color: textColor }}>01</div>
                 <div className="shrink-0 flex justify-between items-start z-10 mb-2 min-h-[50px] gap-2">
                      <div className="flex flex-col items-start gap-1 mt-1 z-10">
@@ -381,7 +381,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                         </div>
                      </div>
                 </div>
-                <div className={`relative ${flexGrowClass} cursor-text overflow-hidden pl-0 z-10 ${minHeightClass} mb-2`} onClick={(e) => handleContainerClick(e, editableRef)}>
+                <div className={`relative ${flexGrowClass} cursor-text ${isLongText ? 'overflow-visible' : 'overflow-hidden'} pl-0 z-10 ${minHeightClass} mb-2`} onClick={(e) => handleContainerClick(e, editableRef)}>
                    <div ref={editableRef} contentEditable={!isExporting} onInput={(e) => handleInput(e, false)} onCompositionStart={() => isComposing.current = true} onCompositionEnd={() => isComposing.current = false} suppressContentEditableWarning={true} className={`${getBodyClasses()} w-full px-0 py-1 block outline-none ${isLongText ? 'h-auto' : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`} style={{ color: textColor }} />
                 </div>
             </div>
@@ -392,7 +392,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
             <div className={`flex flex-col relative px-[10px] py-4 ${isLongText ? '' : 'flex-1 h-1/2'} ${minHeightClass}`}>
                 <div className="absolute -right-6 -top-4 text-[9rem] font-bold opacity-[0.06] pointer-events-none leading-none z-0 font-serif-sc select-none" style={{ color: textColor }}>02</div>
                 <div className="absolute left-0 right-0 bottom-0 -z-10" style={{ top: '-20px', background: `linear-gradient(to bottom right, transparent 49.5%, ${accentColor} 49.5%) top center / 100% 40px no-repeat, linear-gradient(${accentColor}, ${accentColor}) top 40px center / 100% calc(100% - 40px) no-repeat` }} />
-                <div className={`relative ${flexGrowClass} cursor-text overflow-hidden pl-0 z-10 ${minHeightClass} mt-2`} onClick={(e) => handleContainerClick(e, secondaryEditableRef)}>
+                <div className={`relative ${flexGrowClass} cursor-text ${isLongText ? 'overflow-visible' : 'overflow-hidden'} pl-0 z-10 ${minHeightClass} mt-2`} onClick={(e) => handleContainerClick(e, secondaryEditableRef)}>
                    <div ref={secondaryEditableRef} contentEditable={!isExporting} onInput={(e) => handleInput(e, true)} onCompositionStart={() => isComposing.current = true} onCompositionEnd={() => isComposing.current = false} suppressContentEditableWarning={true} className={`${getBodyClasses()} w-full px-0 py-1 block outline-none ${isLongText ? 'h-auto' : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`} style={{ color: textColor }} />
                 </div>
                 <div className="shrink-0 pt-6 flex justify-between items-end z-10 relative mt-auto">
@@ -753,7 +753,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   return (
     <div 
       ref={ref}
-      className={`relative shadow-2xl antialiased overflow-hidden w-[400px] shrink-0 ${containerHeightClass}`}
+      className={`relative shadow-2xl antialiased ${overflowClass} w-[400px] shrink-0 ${containerHeightClass}`}
       style={{
         ...renderingIsolation,
         minHeight: containerMinHeight ? `${containerMinHeight}px` : undefined,
