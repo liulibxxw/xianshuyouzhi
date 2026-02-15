@@ -35,7 +35,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   const categoryBarColor = accentColor;
   const contentBarColor = accentColor;
 
-  const [noiseDataUrl, setNoiseDataUrl] = useState<string>('');
   const editableRef = useRef<HTMLDivElement>(null);
   const secondaryEditableRef = useRef<HTMLDivElement>(null);
   const isComposing = useRef(false);
@@ -54,28 +53,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   const displayBodyText = useMemo(() => isExporting ? getCleanContent(bodyText) : bodyText, [bodyText, isExporting]);
   // 仅在 Duality 布局使用 secondaryText，这里统一处理以防万一
   const displaySecondaryText = useMemo(() => isExporting ? getCleanContent(secondaryBodyText) : secondaryBodyText, [secondaryBodyText, isExporting]);
-
-  useEffect(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 200;
-    canvas.height = 200;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const idata = ctx.createImageData(canvas.width, canvas.height);
-    const buffer32 = new Uint32Array(idata.data.buffer);
-    const len = buffer32.length;
-
-    for (let i = 0; i < len; i++) {
-        if (Math.random() < 0.5) {
-            buffer32[i] = 0x08000000; 
-        }
-    }
-    ctx.putImageData(idata, 0, 0);
-    setNoiseDataUrl(canvas.toDataURL());
-  }, []);
 
   useEffect(() => {
     const el = editableRef.current;
@@ -598,7 +575,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   // 核心修复：容器高度逻辑。导出时长文模式强制 h-auto 且移除 min-h
   const containerHeightClass = useMemo(() => {
       if (!isLongText) return 'h-[500px]';
-      if (isExporting) return 'h-auto';
+      if (isExporting) return '';
       return 'h-auto min-h-[600px] md:min-h-[712px]';
   }, [isLongText, isExporting]);
 
@@ -606,7 +583,10 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     <div 
       ref={ref}
       className={`relative shadow-2xl antialiased overflow-hidden w-[400px] shrink-0 ${containerHeightClass}`}
-      style={renderingIsolation}
+      style={{
+        ...renderingIsolation,
+        ...(isExporting && isLongText ? { height: 'auto', minHeight: 'unset', maxHeight: 'unset', overflow: 'visible' } : {}),
+      }}
     >
       <div 
         className="absolute inset-0 z-0"
@@ -616,17 +596,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
         }}
       />
       
-      {noiseDataUrl && (
-        <div 
-          className="absolute inset-0 pointer-events-none z-0 opacity-100 w-full h-full"
-          style={{ 
-            backgroundImage: `url(${noiseDataUrl})`,
-            backgroundRepeat: 'repeat',
-            mixBlendMode: 'normal' 
-          }}
-        />
-      )}
-
       {layoutStyle !== 'duality' && (
         <div 
             className="absolute inset-0 pointer-events-none z-0"

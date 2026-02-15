@@ -227,8 +227,8 @@ const App: React.FC = () => {
         ...prev,
         title: preset.title,
         subtitle: preset.subtitle,
-        bodyText: preset.bodyText ?? '',
-        secondaryBodyText: preset.secondaryBodyText ?? '',
+        bodyText: preset.bodyText ?? prev.bodyText,
+        secondaryBodyText: preset.secondaryBodyText ?? prev.secondaryBodyText,
         dualityBodyText: preset.dualityBodyText ?? prev.dualityBodyText,
         dualitySecondaryBodyText: preset.dualitySecondaryBodyText ?? prev.dualitySecondaryBodyText,
         category: preset.category,
@@ -414,7 +414,7 @@ const App: React.FC = () => {
       const fontCss = await getEmbedFontCSS();
       const exportOptions: any = { cacheBust: true, pixelRatio: 4, backgroundColor: state.backgroundColor, fontEmbedCSS: fontCss };
       if (state.mode === 'cover') { exportOptions.width = 400; exportOptions.height = 440; exportOptions.style = { width: '400px', height: '440px', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0' }; }
-      else { exportOptions.width = 400; exportOptions.style = { width: '400px', height: 'auto', maxWidth: 'none', transform: 'none', margin: '0' }; }
+      else { exportOptions.width = 400; exportOptions.style = { width: '400px', height: 'auto', maxWidth: 'none', maxHeight: 'none', transform: 'none', margin: '0', overflow: 'visible', minHeight: 'unset' }; }
       
       const dataUrl = await toPng(previewRef.current, exportOptions);
       setExportImage(dataUrl);

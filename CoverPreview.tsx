@@ -31,31 +31,8 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   const categoryBarColor = accentColor;
   const contentBarColor = accentColor;
 
-  const [noiseDataUrl, setNoiseDataUrl] = useState<string>('');
   const editableRef = useRef<HTMLDivElement>(null);
   const isComposing = useRef(false);
-
-  useEffect(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 200;
-    canvas.height = 200;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const idata = ctx.createImageData(canvas.width, canvas.height);
-    const buffer32 = new Uint32Array(idata.data.buffer);
-    const len = buffer32.length;
-
-    for (let i = 0; i < len; i++) {
-        if (Math.random() < 0.5) {
-            buffer32[i] = 0x08000000; 
-        }
-    }
-    ctx.putImageData(idata, 0, 0);
-    setNoiseDataUrl(canvas.toDataURL());
-  }, []);
 
   useEffect(() => {
     const el = editableRef.current;
