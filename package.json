@@ -16,7 +16,7 @@
     "@capacitor/share": "^6.0.0",
     "@google/genai": "^1.31.0",
     "@heroicons/react": "^2.2.0",
-    "html-to-image": "^1.11.11",
+    "html2canvas-pro": "^1.6.7",
     "react": "^19.2.1",
     "react-dom": "^19.2.1"
   },

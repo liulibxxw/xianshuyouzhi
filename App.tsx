@@ -20,41 +20,10 @@ import { MobilePresetPanel } from './components/PresetPanel';
 import ExportModal from './components/ExportModal';
 import RichTextToolbar from './components/RichTextToolbar';
 import { ArrowDownTrayIcon, PaintBrushIcon, BookmarkIcon, ArrowsRightLeftIcon, SwatchIcon, SparklesIcon, MagnifyingGlassIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
-import { toPng } from 'html-to-image';
+import html2canvas from 'html2canvas-pro';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
-
-const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;700;900&display=swap";
-
-async function getEmbedFontCSS() {
-    try {
-        const res = await fetch(GOOGLE_FONTS_URL);
-        const css = await res.text();
-        const urls: string[] = [];
-        css.replace(/url\(([^)]+)\)/g, (match, url) => {
-            urls.push(url.replace(/['"]/g, '').trim());
-            return match;
-        });
-        const uniqueUrls = [...new Set(urls)];
-        const fontMap = new Map<string, string>();
-        await Promise.all(uniqueUrls.map(async (url) => {
-            try {
-                const response = await fetch(url);
-                const blob = await response.blob();
-                const reader = new FileReader();
-                await new Promise((resolve) => {
-                    reader.onloadend = () => resolve(null);
-                    reader.readAsDataURL(blob);
-                });
-                if (reader.result) fontMap.set(url, reader.result as string);
-            } catch (e) { console.warn('Failed to load font file for export:', url); }
-        }));
-        let newCss = css;
-        fontMap.forEach((base64, url) => { newCss = newCss.split(url).join(base64); });
-        return newCss;
-    } catch (e) { console.error('Error embedding fonts for image export:', e); return ''; }
-}
 
 const App: React.FC = () => {
   const [state, setState] = useState<CoverState>(() => {
@@ -408,19 +377,18 @@ const App: React.FC = () => {
     if (filename) setExportFilename(filename);
     setShowExportModal(true);
 
-    // ===== 核心修复：彻底解决 html-to-image 在缩放环境下的字号偏差 =====
+    // ===== 使用 html2canvas-pro（Canvas 2D 直绘）替代 html-to-image =====
     //
-    // 问题根因（来自 html-to-image 源码分析）：
-    // cloneCSSStyle() 对 **每个** 子节点调用 window.getComputedStyle(原始节点)
-    // 将计算后的样式逐属性复制到克隆体。如果在 transform:scale() 下读取，
-    // 浏览器可能对子像素值做不同的舍入（尤其 Android WebView），
-    // 导致克隆体中文本排版宽度与实际不同 —— 表现为"一行少一个字"。
+    // html-to-image 通过 SVG foreignObject 渲染文本，浏览器在 SVG 中的
+    // 文本度量（字符宽度舍入）与 DOM 原生渲染不同，导致中文小字号时
+    // 一行能放的字数比预览少（10字→9字）。这是其架构性缺陷，无法修复。
     //
-    // 解决方案：
-    // 1. 移除父级 scale 变换
-    // 2. 等待两个 rAF + 100ms，确保浏览器完成完整 reflow + repaint
-    //    让所有子元素的 computedStyle 在 scale=1 下被重新计算
-    // 3. 此时再调用 toPng，cloneCSSStyle 读到的就是 1:1 的正确样式
+    // html2canvas-pro 直接读取 DOM 布局坐标，用 Canvas 2D API 逐元素绘制，
+    // 文本位置和大小与浏览器原生渲染完全一致。
+    //
+    // 但 html2canvas 使用 getBoundingClientRect 读取元素坐标，
+    // 如果父级有 transform:scale()，所有坐标都会被缩放。
+    // 因此必须先移除 scale，等浏览器完成 reflow 后再截图。
 
     const scaleWrapper = previewRef.current.parentElement;
     const savedTransform = scaleWrapper?.style.transform || '';
@@ -430,10 +398,7 @@ const App: React.FC = () => {
       scaleWrapper.style.transformOrigin = 'top left';
     }
 
-    // 双重 rAF + setTimeout 确保浏览器完成完整的 reflow + repaint 周期
-    // 第一个 rAF：进入下一帧
-    // 第二个 rAF：确保上一帧的样式计算已完成
-    // setTimeout：额外留出 WebView 异步合成器的缓冲
+    // 等待浏览器完成 reflow + repaint，确保所有元素坐标已更新
     await new Promise<void>(resolve => {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -445,29 +410,20 @@ const App: React.FC = () => {
     try {
       await document.fonts.ready; 
       await new Promise(r => setTimeout(r, 200)); 
-      const fontCss = await getEmbedFontCSS();
 
       const el = previewRef.current;
-      const elRect = el.getBoundingClientRect();
 
-      const exportOptions: any = {
-        cacheBust: true,
-        pixelRatio: 4,
+      const canvas = await html2canvas(el, {
+        scale: 4,
         backgroundColor: state.backgroundColor,
-        fontEmbedCSS: fontCss,
-        width: 400,
-        height: state.mode === 'cover' ? 500 : Math.ceil(elRect.height),
-        // 强制克隆体根节点使用精确的 400px 宽度
-        style: {
-          width: '400px',
-          minWidth: '400px',
-          maxWidth: '400px',
-          transform: 'none',
-          transformOrigin: 'top left',
-        },
-      };
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        width: el.scrollWidth,
+        height: el.scrollHeight,
+      });
 
-      const dataUrl = await toPng(el, exportOptions);
+      const dataUrl = canvas.toDataURL('image/png');
       setExportImage(dataUrl);
     } catch (e) { 
         console.error("Export failed:", e); 
