@@ -109,9 +109,11 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
 
   const isLongText = mode === 'long-text';
   
-  // 核心修复：导出时长文模式使用 flex-none，避免 flex 容器尝试填充高度
-  const flexGrowClass = isLongText ? (isExporting ? 'flex-none' : 'flex-auto') : 'flex-1';
-  // 核心修复：导出时移除 min-h-0，虽然 min-h-0 通常无害，但在某些 flex 计算中可能由副作用，这里保持简洁
+  // 核心修复：长文模式统一使用 flex-none，让容器高度完全由内容决定，
+  // 不再让 flex-auto (flex-grow:1) 去填充 min-h 带来的多余空间，
+  // 从而消除文本末尾到底部装饰条之间的异常空白区域。
+  // 封面模式仍用 flex-1 填满固定高度。
+  const flexGrowClass = isLongText ? 'flex-none' : 'flex-1';
   const minHeightClass = isLongText ? '' : 'min-h-0';
 
   const categories = effectiveCategory ? effectiveCategory.split(/[、, ]/).map(c => c.trim()).filter(Boolean) : [];
@@ -250,7 +252,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     if (layoutStyle === 'minimal') {
       return (
         <div 
-          className={`relative z-10 p-6 w-full flex flex-col ${isExporting ? '' : 'justify-between'} ${isLongText ? (isExporting ? 'flex-none' : 'flex-auto') : 'h-full overflow-hidden'}`}
+          className={`relative z-10 p-6 w-full flex flex-col ${isExporting ? '' : (isLongText ? '' : 'justify-between')} ${isLongText ? 'flex-none' : 'h-full overflow-hidden'}`}
         >
           {renderTechDecorations()}
 
@@ -326,7 +328,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                       onCompositionEnd={() => isComposing.current = false}
                       suppressContentEditableWarning={true}
                       // 核心修复：导出时长文模式移除 min-h-[100px]
-                      className={`${getBodyClasses()} w-full p-0 m-0 block opacity-90 transform-none ${isLongText ? `h-auto overflow-visible ${isExporting ? '' : 'min-h-[100px]'}` : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
+                      className={`${getBodyClasses()} w-full p-0 m-0 block opacity-90 transform-none ${isLongText ? 'h-auto overflow-visible min-h-[60px]' : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
                       style={{ color: textColor }}
                     />
                 </div>
@@ -402,7 +404,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                 onCompositionStart={() => isComposing.current = true}
                 onCompositionEnd={() => isComposing.current = false}
                 suppressContentEditableWarning={true}
-                className={`${getBodyClasses()} px-2 w-full outline-none ${isLongText ? `h-auto overflow-visible ${isExporting ? '' : 'min-h-[100px]'}` : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
+                className={`${getBodyClasses()} px-2 w-full outline-none ${isLongText ? 'h-auto overflow-visible min-h-[60px]' : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
                 style={{ color: textColor }}
               />
           </div>
@@ -442,7 +444,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     if (layoutStyle === 'duality') {
       return (
         <div key="layout-duality" className={`relative z-10 w-full flex flex-col ${flexGrowClass} ${minHeightClass}`}>
-            <div className={`flex flex-col relative px-[10px] py-4 ${isLongText ? (isExporting ? '' : 'min-h-[300px]') : 'flex-1 h-1/2'} overflow-hidden ${minHeightClass}`}>
+            <div className={`flex flex-col relative px-[10px] py-4 ${isLongText ? '' : 'flex-1 h-1/2'} overflow-hidden ${minHeightClass}`}>
                 <div className="absolute -left-6 bottom-0 text-[9rem] font-bold opacity-[0.06] pointer-events-none leading-none z-0 font-serif-sc select-none" style={{ color: textColor }}>01</div>
                 <div className="shrink-0 flex justify-between items-start z-10 mb-2 min-h-[50px] gap-2">
                      <div className="flex flex-col items-start gap-1 mt-1 z-10">
@@ -472,7 +474,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                  <div className="absolute top-0 left-0 w-full h-[40px] -translate-y-1/2" style={{ background: `linear-gradient(to bottom right, transparent 49%, ${textColor} 49%, ${textColor} 51%, transparent 51%)` }}></div>
                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-full p-2 border border-current shadow-sm" style={{ color: textColor }}><div className="w-2 h-2 rounded-full bg-current" style={{ color: accentColor }}></div></div>
             </div>
-            <div className={`flex flex-col relative px-[10px] py-4 ${isLongText ? (isExporting ? '' : 'min-h-[300px]') : 'flex-1 h-1/2'} ${minHeightClass}`}>
+            <div className={`flex flex-col relative px-[10px] py-4 ${isLongText ? '' : 'flex-1 h-1/2'} ${minHeightClass}`}>
                 <div className="absolute -right-6 -top-4 text-[9rem] font-bold opacity-[0.06] pointer-events-none leading-none z-0 font-serif-sc select-none" style={{ color: textColor }}>02</div>
                 <div className="absolute left-0 right-0 bottom-0 -z-10" style={{ top: '-20px', background: `linear-gradient(to bottom right, transparent 49.5%, ${accentColor} 49.5%) top center / 100% 40px no-repeat, linear-gradient(${accentColor}, ${accentColor}) top 40px center / 100% calc(100% - 40px) no-repeat` }} />
                 <div className={`relative ${flexGrowClass} cursor-text overflow-hidden pl-0 z-10 ${minHeightClass} mt-2`} onClick={(e) => handleContainerClick(e, secondaryEditableRef)}>
@@ -555,7 +557,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                   onCompositionStart={() => isComposing.current = true}
                   onCompositionEnd={() => isComposing.current = false}
                   suppressContentEditableWarning={true}
-                  className={`${getBodyClasses()} opacity-90 w-full outline-none ${isLongText ? `h-auto overflow-visible ${isExporting ? '' : 'min-h-[100px]'}` : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
+                  className={`${getBodyClasses()} opacity-90 w-full outline-none ${isLongText ? 'h-auto overflow-visible min-h-[60px]' : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
                   style={{ color: textColor }}
                 />
             </div>
@@ -572,12 +574,11 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     );
   };
 
-  // 核心修复：容器高度逻辑。导出时长文模式强制 h-auto 且移除 min-h
+  // 容器高度逻辑。长文模式使用 h-auto，不设 min-h 来避免 flex 填充产生空白
   const containerHeightClass = useMemo(() => {
       if (!isLongText) return 'h-[500px]';
-      if (isExporting) return '';
-      return 'h-auto min-h-[600px] md:min-h-[712px]';
-  }, [isLongText, isExporting]);
+      return 'h-auto';
+  }, [isLongText]);
 
   return (
     <div 
@@ -585,7 +586,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
       className={`relative shadow-2xl antialiased overflow-hidden w-[400px] shrink-0 ${containerHeightClass}`}
       style={{
         ...renderingIsolation,
-        ...(isExporting && isLongText ? { height: 'auto', minHeight: 'unset', maxHeight: 'unset', overflow: 'visible' } : {}),
+        ...(isLongText ? { height: 'auto', minHeight: 'unset', maxHeight: 'unset', overflow: 'visible' } : {}),
       }}
     >
       <div 
