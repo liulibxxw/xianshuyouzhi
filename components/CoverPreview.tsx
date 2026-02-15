@@ -571,9 +571,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     );
   };
 
-  // 容器高度：封面模式固定500px，长文模式完全由内容撑开（无 min-h）
-  // 之前的 min-h-[600px] 是空白区域的直接原因——当内容不足600px时，
-  // 内部 flex-none 的子元素不会拉伸填充，剩余空间就变成了空白。
+  // 容器高度：封面模式固定500px，长文模式完全由内容撑开
   const containerHeightClass = useMemo(() => {
       if (!isLongText) return 'h-[500px]';
       return 'h-auto';
@@ -582,7 +580,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   return (
     <div 
       ref={ref}
-      className={`relative shadow-2xl antialiased overflow-hidden w-[400px] shrink-0 ${containerHeightClass}`}
+      className={`relative shadow-2xl antialiased w-[400px] shrink-0 ${containerHeightClass} ${isLongText ? 'overflow-visible' : 'overflow-hidden'}`}
       style={{
         ...renderingIsolation,
       }}

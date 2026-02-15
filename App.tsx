@@ -408,12 +408,22 @@ const App: React.FC = () => {
     if (filename) setExportFilename(filename);
     setShowExportModal(true);
 
-    // 关键修复：导出前移除父级的 CSS transform: scale()。
-    // html-to-image 在克隆 DOM 时会基于 getBoundingClientRect 计算尺寸，
-    // 父级的 scale 变换会导致计算出的尺寸被缩小，从而导致：
-    //   - 字体在导出图片中变小（一行能放的字数变少）
-    //   - 元素坐标微妙偏移（标签上下位移）
-    // 这才是之前 APK 环境下导出字体偏小的真正根因。
+    // 第一步：等待 React 完成 isExporting=true 的重渲染。
+    // 这确保 CoverPreview 中的 getCleanContent() 已清理文本、
+    // contentEditable 已变为 false，DOM 已稳定。
+    // 如果在 React 重渲染前就移除 scale，会导致一瞬间
+    // 旧内容在 1:1 尺寸下重排，产生字数差异。
+    await new Promise<void>(resolve => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(resolve, 100);
+        });
+      });
+    });
+
+    // 第二步：移除父级 scale 变换。
+    // html-to-image 基于 getBoundingClientRect 计算尺寸，
+    // scale 会让它拿到缩放后的尺寸，导致导出图片中字体偏小。
     const scaleWrapper = previewRef.current.parentElement;
     const savedTransform = scaleWrapper?.style.transform || '';
     const savedTransformOrigin = scaleWrapper?.style.transformOrigin || '';
@@ -424,7 +434,8 @@ const App: React.FC = () => {
 
     try {
       await document.fonts.ready; 
-      await new Promise(r => setTimeout(r, 500)); 
+      // 等待移除 scale 后的布局稳定
+      await new Promise(r => setTimeout(r, 300)); 
       const fontCss = await getEmbedFontCSS();
 
       const el = previewRef.current;
@@ -433,7 +444,6 @@ const App: React.FC = () => {
         pixelRatio: 4,
         backgroundColor: state.backgroundColor,
         fontEmbedCSS: fontCss,
-        // 强制以元素的原始 1:1 尺寸导出，不受外部 transform 影响
         style: {
           transform: 'none',
           transformOrigin: 'top left',
@@ -520,7 +530,7 @@ const App: React.FC = () => {
         <div className="flex-1 relative overflow-hidden bg-gray-100/50 flex flex-col">
             <div ref={previewContainerRef} className="flex-1 relative overflow-hidden">
                <div className="absolute inset-0 overflow-y-auto overflow-x-hidden flex flex-col items-center custom-scrollbar">
-                  <div className={`flex-1 flex justify-center w-full min-h-full ${state.mode === 'cover' ? 'items-center p-4 lg:p-8' : 'items-start pt-0 pb-24 px-4 lg:pt-0'}`}>
+                  <div className={`flex justify-center w-full ${state.mode === 'cover' ? 'flex-1 min-h-full items-center p-4 lg:p-8' : 'items-start pt-0 pb-24 px-4 lg:pt-0'}`}>
                     <div className="transition-transform duration-300 relative flex justify-center" style={{ transform: `scale(${previewScale})`, transformOrigin: state.mode === 'cover' ? 'center center' : 'top center', width: '400px' }}>
                       <CoverPreview ref={previewRef} state={effectivePreviewState} onBodyTextChange={val => handleStateChange({ bodyText: val })} onSecondaryBodyTextChange={val => handleStateChange({ secondaryBodyText: val })} isExporting={isExporting} />
                     </div>
