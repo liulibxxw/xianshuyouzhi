@@ -20,10 +20,81 @@ import { MobilePresetPanel } from './components/PresetPanel';
 import ExportModal from './components/ExportModal';
 import RichTextToolbar from './components/RichTextToolbar';
 import { ArrowDownTrayIcon, PaintBrushIcon, BookmarkIcon, ArrowsRightLeftIcon, SwatchIcon, SparklesIcon, MagnifyingGlassIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
-import html2canvas from 'html2canvas-pro';
+import { toPng } from 'html-to-image';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+
+const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;700;900&display=swap";
+const ZEOSEVEN_FONT_URL = "https://fontsapi.zeoseven.com/508/main/result.css";
+const PINGFANG_FONT_URL = "/temp_font.woff2";
+
+const blobToDataURL = (blob: Blob) => {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+};
+
+async function getEmbedFontCSS() {
+    try {
+    const [googleRes, zeoRes, pingfangRes] = await Promise.all([
+            fetch(GOOGLE_FONTS_URL),
+      fetch(ZEOSEVEN_FONT_URL).catch(() => null),
+      fetch(PINGFANG_FONT_URL).catch(() => null),
+        ]);
+        let css = await googleRes.text();
+        if (zeoRes) {
+            let zeoCss = await zeoRes.text();
+            // 将 zeoseven CSS 中的相对路径转为绝对路径
+            const zeoBase = ZEOSEVEN_FONT_URL.replace(/\/[^/]*$/, '/');
+            zeoCss = zeoCss.replace(/url\(["']?\.\//g, `url("${zeoBase}`).replace(/\.woff2["']?\)/g, '.woff2")');
+            css += '\n' + zeoCss;
+        }
+        
+        const urls: string[] = [];
+        css.replace(/url\(([^)]+)\)/g, (match, url) => {
+            urls.push(url.replace(/['"]/g, '').trim());
+            return match;
+        });
+
+        const uniqueUrls = [...new Set(urls)];
+        const fontMap = new Map<string, string>();
+
+        await Promise.all(uniqueUrls.map(async (url) => {
+          try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const dataUrl = await blobToDataURL(blob);
+            fontMap.set(url, dataUrl);
+          } catch (e) {
+            console.warn('Failed to load font', url, e);
+          }
+        }));
+
+        let newCss = css;
+        fontMap.forEach((base64, url) => {
+            newCss = newCss.split(url).join(base64);
+        });
+
+        if (pingfangRes && pingfangRes.ok) {
+          try {
+            const blob = await pingfangRes.blob();
+            const dataUrl = await blobToDataURL(blob);
+            newCss += `\n@font-face {\n  font-family: 'pingfangqignchunti';\n  src: url('${dataUrl}') format('woff2');\n  font-weight: 400;\n  font-style: normal;\n  font-display: swap;\n}`;
+          } catch (error) {
+            console.warn('Failed to embed pingfang font', error);
+          }
+        }
+        
+        return newCss;
+    } catch (e) {
+        console.error('Error embedding fonts', e);
+        return '';
+    }
+}
 
 const App: React.FC = () => {
   const [state, setState] = useState<CoverState>(() => {
@@ -150,29 +221,32 @@ const App: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showBgColorPalette]);
 
+  const recomputePreviewMetrics = useCallback(() => {
+    if (!previewContainerRef.current) return;
+    const container = previewContainerRef.current;
+    const availableW = container.clientWidth - 48;
+    const targetW = 400;
+    const scale = Math.min(availableW / targetW, 1);
+    setPreviewScale(scale);
+
+    if (state.mode === 'long-text') {
+      const containerH = container.clientHeight;
+      const scrollable = container.querySelector('[data-long-text-scroll]') as HTMLElement | null;
+      const scrollHeight = scrollable ? scrollable.scrollHeight : container.scrollHeight;
+      const desiredHeight = Math.max(containerH, scrollHeight * scale);
+      setPreviewMinHeight(Math.ceil(desiredHeight / scale));
+    } else {
+      setPreviewMinHeight(0);
+    }
+  }, [state.mode]);
+
   useEffect(() => {
-    const handleResize = () => {
-        if (previewContainerRef.current) {
-            const container = previewContainerRef.current;
-            const availableW = container.clientWidth - 48; 
-            const targetW = 400;
-            const scale = Math.min(availableW / targetW, 1);
-            setPreviewScale(scale);
-            // 长文模式：计算容器可视高度，让预览恰好占满导航栏到底部工具栏的间隔
-            if (state.mode === 'long-text') {
-              const containerH = container.clientHeight;
-              // 缩放后的预览最小高度 = 容器高度 / scale
-              setPreviewMinHeight(Math.floor(containerH / scale));
-            } else {
-              setPreviewMinHeight(0);
-            }
-        }
-    };
+    const handleResize = () => recomputePreviewMetrics();
     window.addEventListener('resize', handleResize);
-    handleResize();
-    setTimeout(handleResize, 50);
+    recomputePreviewMetrics();
+    setTimeout(recomputePreviewMetrics, 50);
     return () => window.removeEventListener('resize', handleResize);
-  }, [state.mode, activeTab, state.layoutStyle]);
+  }, [recomputePreviewMetrics, activeTab, state.layoutStyle]);
 
   const handleStateChange = useCallback((patch: Partial<CoverState>) => {
     setState(prev => {
@@ -216,10 +290,10 @@ const App: React.FC = () => {
         ...prev,
         title: preset.title,
         subtitle: preset.subtitle,
-        bodyText: preset.bodyText ?? prev.bodyText,
-        secondaryBodyText: preset.secondaryBodyText ?? prev.secondaryBodyText,
-        dualityBodyText: preset.dualityBodyText ?? prev.dualityBodyText,
-        dualitySecondaryBodyText: preset.dualitySecondaryBodyText ?? prev.dualitySecondaryBodyText,
+        bodyText: preset.bodyText || prev.bodyText,
+        secondaryBodyText: preset.secondaryBodyText || prev.secondaryBodyText,
+        dualityBodyText: preset.dualityBodyText || prev.dualityBodyText,
+        dualitySecondaryBodyText: preset.dualitySecondaryBodyText || prev.dualitySecondaryBodyText,
         category: preset.category,
         author: preset.author
     }));
@@ -397,64 +471,58 @@ const App: React.FC = () => {
     if (filename) setExportFilename(filename);
     setShowExportModal(true);
 
-    // ===== 使用 html2canvas-pro（Canvas 2D 直绘）替代 html-to-image =====
-    //
-    // html-to-image 通过 SVG foreignObject 渲染文本，浏览器在 SVG 中的
-    // 文本度量（字符宽度舍入）与 DOM 原生渲染不同，导致中文小字号时
-    // 一行能放的字数比预览少（10字→9字）。这是其架构性缺陷，无法修复。
-    //
-    // html2canvas-pro 直接读取 DOM 布局坐标，用 Canvas 2D API 逐元素绘制，
-    // 文本位置和大小与浏览器原生渲染完全一致。
-    //
-    // 但 html2canvas 使用 getBoundingClientRect 读取元素坐标，
-    // 如果父级有 transform:scale()，所有坐标都会被缩放。
-    // 因此必须先移除 scale，等浏览器完成 reflow 后再截图。
-
-    const scaleWrapper = previewRef.current.parentElement;
-    const savedTransform = scaleWrapper?.style.transform || '';
-    const savedTransformOrigin = scaleWrapper?.style.transformOrigin || '';
-    if (scaleWrapper) {
-      scaleWrapper.style.transform = 'none';
-      scaleWrapper.style.transformOrigin = 'top left';
-    }
-
-    // 等待浏览器完成 reflow + repaint，确保所有元素坐标已更新
-    await new Promise<void>(resolve => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setTimeout(resolve, 100);
-        });
-      });
-    });
+    // ===== 使用 html-to-image 导出，支持 SVG 滤镜/阴影等 html2canvas 无法渲染的特性 =====
 
     try {
       await document.fonts.ready; 
       await new Promise(r => setTimeout(r, 200)); 
 
+      const fontCss = await getEmbedFontCSS();
+
       const el = previewRef.current;
 
-      const canvas = await html2canvas(el, {
-        scale: 4,
-        backgroundColor: state.backgroundColor,
-        useCORS: true,
-        allowTaint: false,
-        logging: false,
-        width: el.scrollWidth,
-        height: el.scrollHeight,
-      });
+      const exportOptions: any = {
+        cacheBust: true,
+        pixelRatio: 4, 
+        backgroundColor: state.layoutStyle === 'storybook' ? '#FFF8F0' : state.backgroundColor,
+        fontEmbedCSS: fontCss,
+      };
 
-      const dataUrl = canvas.toDataURL('image/png');
+      if (state.mode === 'cover') {
+        exportOptions.width = 400;
+        exportOptions.height = 440; 
+        exportOptions.style = {
+           width: '400px',
+           height: '440px',
+           maxWidth: 'none',
+           maxHeight: 'none',
+           transform: 'none',
+           margin: '0',
+           overflow: 'visible',
+        };
+      } else {
+        // 长文模式：获取元素的完整内容高度，确保导出完整图片
+        const fullHeight = el.scrollHeight;
+        exportOptions.width = 400;
+        exportOptions.height = fullHeight;
+        exportOptions.style = {
+           width: '400px',
+           height: `${fullHeight}px`,
+           maxWidth: 'none',
+           maxHeight: 'none',
+           transform: 'none',
+           margin: '0',
+           overflow: 'visible',
+        };
+      }
+
+      const dataUrl = await toPng(el, exportOptions);
       setExportImage(dataUrl);
     } catch (e) { 
         console.error("Export failed:", e); 
         showToast("导出失败，请重试", "error"); 
         setShowExportModal(false); 
     } finally { 
-        // 恢复缩放
-        if (scaleWrapper) {
-          scaleWrapper.style.transform = savedTransform;
-          scaleWrapper.style.transformOrigin = savedTransformOrigin;
-        }
         setIsExporting(false); 
     }
   };

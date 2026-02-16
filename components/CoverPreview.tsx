@@ -42,7 +42,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
 
   // 渲染隔离样式，确保导出一致性
   const renderingIsolation: React.CSSProperties = {
-    backgroundColor: backgroundColor,
+    backgroundColor: layoutStyle === 'storybook' ? '#FFF8F0' : backgroundColor,
     display: 'flex', 
     flexDirection: 'column',
     // 强制隔离渲染环境
@@ -140,6 +140,10 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
         if (length > 14) sizeClass = 'text-2xl';
         else if (length > 10) sizeClass = 'text-3xl';
         else sizeClass = 'text-4xl';
+    } else if (layoutStyle === 'storybook') {
+        if (length > 12) sizeClass = 'text-2xl';
+        else if (length > 8) sizeClass = 'text-3xl';
+        else sizeClass = 'text-4xl';
     } else {
         if (length > 10) sizeClass = 'text-2xl';
         else if (length > 7) sizeClass = 'text-3xl';
@@ -157,7 +161,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
       return `${bodyTextSize} ${bodyTextAlign} leading-[1.5] outline-none ${getBodyFontClass()}`;
   };
 
-  // 自适应副标题组件：保持原始字号，仅在文本溢出时用 CSS scale 缩放到刚好不换行
+  // 自适应副标题组件：动态缩小字号直到能在 maxWidth 内完整显示
   const AutoFitSubtitle: React.FC<{
     children: React.ReactNode;
     className?: string;
@@ -167,24 +171,25 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   }> = useCallback(({ children, className = '', style = {}, maxWidth, align = 'left' }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const innerRef = useRef<HTMLSpanElement>(null);
-    const [scale, setScale] = useState(1);
+    const [fontSize, setFontSize] = useState<number | undefined>(undefined);
 
     useEffect(() => {
       const inner = innerRef.current;
       if (!inner) return;
-      // 先重置 scale 以获取真实宽度
-      setScale(1);
+      // Reset to default font size to measure natural width
+      setFontSize(undefined);
       requestAnimationFrame(() => {
         const naturalWidth = inner.scrollWidth;
         if (naturalWidth > maxWidth && naturalWidth > 0) {
-          setScale(Math.max(0.5, maxWidth / naturalWidth)); // 最小缩放到 0.5
+          // Calculate scaled font size: original size * (maxWidth / naturalWidth)
+          const computedSize = parseFloat(getComputedStyle(inner).fontSize);
+          const newSize = Math.max(computedSize * 0.55, computedSize * (maxWidth / naturalWidth));
+          setFontSize(newSize);
         } else {
-          setScale(1);
+          setFontSize(undefined);
         }
       });
     }, [children, maxWidth]);
-
-    const origin = align === 'right' ? 'right center' : 'left center';
 
     return (
       <div
@@ -192,7 +197,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
         className={className}
         style={{
           ...style,
-          maxWidth: `${maxWidth}px`,
+          width: `${maxWidth}px`,
           overflow: 'hidden',
         }}
       >
@@ -201,8 +206,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
           style={{
             display: 'inline-block',
             whiteSpace: 'nowrap',
-            transform: scale < 1 ? `scaleX(${scale})` : undefined,
-            transformOrigin: origin,
+            fontSize: fontSize !== undefined ? `${fontSize}px` : undefined,
           }}
         >
           {children}
@@ -487,6 +491,250 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
       );
     }
 
+    if (layoutStyle === 'storybook') {
+      // Storybook Crayon Aesthetic — warm earthy palette with hand-drawn feel
+      const earthyColors = {
+        forestGreen: '#2D5F3E',
+        mustardYellow: '#D4A843',
+        brickRed: '#C7442B',
+        cream: '#FFF8F0',
+        brown: '#5B4A3F',
+        warmBg: '#FEF3E2',
+      };
+
+      return (
+        <div 
+          className={`relative z-10 p-5 w-full flex flex-col storybook-paper-bg ${isLongText ? 'flex-1' : 'h-full overflow-hidden justify-between'}`}
+          style={{ color: earthyColors.brown }}
+        >
+          {/* Paper texture overlay */}
+          <div className="absolute inset-0 pointer-events-none z-0" style={{
+            backgroundImage: `radial-gradient(circle at 20% 80%, rgba(212,168,67,0.08) 0%, transparent 50%),
+                              radial-gradient(circle at 80% 20%, rgba(199,68,43,0.06) 0%, transparent 50%),
+                              radial-gradient(circle at 50% 50%, rgba(45,95,62,0.04) 0%, transparent 60%)`,
+          }} />
+
+          {/* Tape decorations - top corners */}
+          <div className="storybook-tape" style={{ top: '-4px', left: '16px', zIndex: 20 }} />
+          <div className="storybook-tape-right" style={{ top: '-4px', right: '16px', zIndex: 20 }} />
+
+          {/* Main bordered content area */}
+          <div className={`storybook-border relative flex flex-col ${isLongText ? 'flex-1' : flexGrowClass} ${minHeightClass}`} style={{ backgroundColor: earthyColors.cream, overflow: 'hidden' }}>
+            {/* Inner dashed border is handled by CSS ::before */}
+            
+            {/* Header section with categories as cute stickers */}
+            <div className="px-4 pt-4 pb-1 shrink-0 flex-none relative z-10">
+              {/* Category stickers + reading stats */}
+              <div className="flex items-center gap-1.5 mb-2">
+                {/* Left: category stickers */}
+                <div className="flex flex-wrap items-center gap-1.5 flex-1">
+                  {displayCategories.map((cat, idx) => {
+                    const stickerColors = [earthyColors.forestGreen, earthyColors.brickRed, earthyColors.mustardYellow];
+                    const stickerColor = stickerColors[idx % stickerColors.length];
+                    return (
+                      <div 
+                        key={idx} 
+                        className="wobbly-box px-2 py-0.5 wiggle-hover select-none"
+                        style={{ 
+                          color: stickerColor, 
+                          backgroundColor: `${stickerColor}15`,
+                          transform: `rotate(${idx % 2 === 0 ? '-2' : '1.5'}deg)`,
+                        }}
+                      >
+                        <span className="text-[10px] font-bold tracking-wider font-storybook leading-none">{cat}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Right: reading stats — auto-width centered text */}
+                <div className="shrink-0 select-none relative" style={{ transform: 'rotate(2.5deg)', marginRight: '-2px' }}>
+                  <div className="relative px-2 py-1" style={{
+                    backgroundColor: '#FFF5E6',
+                    border: `1.5px solid ${earthyColors.brown}40`,
+                    borderRadius: '2px 6px 4px 2px',
+                    boxShadow: `1px 1px 0 ${earthyColors.brown}15`,
+                  }}>
+                    <div className="absolute inset-0 pointer-events-none opacity-[0.06]" style={{
+                      backgroundImage: `radial-gradient(${earthyColors.brown} 0.5px, transparent 0.5px)`,
+                      backgroundSize: '3px 3px',
+                    }} />
+                    <div className="relative flex items-center justify-center gap-1">
+                      <span className="text-[9px] font-bold leading-none font-caveat" style={{ color: earthyColors.brickRed }}>{readingStats.length}</span>
+                      <span className="text-[7px] opacity-40 leading-none" style={{ color: earthyColors.brown }}>字</span>
+                      <span className="text-[8px] opacity-25 leading-none mx-0.5" style={{ color: earthyColors.brown }}>·</span>
+                      <span className="text-[9px] font-bold leading-none font-caveat" style={{ color: earthyColors.forestGreen }}>{readingStats.minutes}</span>
+                      <span className="text-[7px] opacity-40 leading-none" style={{ color: earthyColors.brown }}>min</span>
+                    </div>
+                    <svg width="100%" height="3" viewBox="0 0 80 3" preserveAspectRatio="none" className="mt-0.5 opacity-20">
+                      <path d="M0 1.5 Q8 0.5 16 1.8 Q24 2.8 32 1.2 Q40 0.2 48 1.6 Q56 2.6 64 1 Q72 0.4 80 1.5" stroke={earthyColors.mustardYellow} strokeWidth="2" fill="none" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                  <div className="absolute -top-[3px] -left-[4px] w-[14px] h-[6px]" style={{
+                    backgroundColor: 'rgba(255,230,150,0.65)',
+                    transform: 'rotate(-12deg)',
+                    borderRadius: '1px',
+                  }} />
+                </div>
+              </div>
+
+              {/* Title with crayon underline + star behind last char */}
+              <div className="relative mb-2">
+                <h1 
+                  className={`leading-tight relative font-caveat ${getTitleFontClass()}`} 
+                  style={{ 
+                    color: earthyColors.brown,
+                  }}
+                >
+                  {/* Title text with inline star tucked behind last character */}
+                  <span className="relative z-10">{title}</span>
+                  <span className="gold-star select-none pointer-events-none relative z-0" style={{
+                    fontSize: '0.65em',
+                    display: 'inline-block',
+                    verticalAlign: 'baseline',
+                    marginLeft: '-0.6em',
+                    marginBottom: '-0.15em',
+                    transform: 'rotate(12deg) translateY(0.1em)',
+                  }}>
+                    <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M313.991837 914.285714c-20.37551 0-40.228571-6.269388-56.946939-18.808163-30.302041-21.942857-44.930612-58.514286-38.661225-95.085714l24.032654-141.061225c3.134694-18.285714-3.134694-36.571429-16.195919-49.110204L123.297959 509.910204c-26.644898-26.122449-36.04898-64.261224-24.555102-99.787755 11.493878-35.526531 41.795918-61.126531 78.889796-66.35102l141.583674-20.375511c18.285714-2.612245 33.959184-14.106122 41.795918-30.30204l63.216326-128.522449C440.946939 130.612245 474.383673 109.714286 512 109.714286s71.053061 20.897959 87.24898 54.334694L662.987755 292.571429c8.359184 16.195918 24.032653 27.689796 41.795918 30.30204l141.583674 20.375511c37.093878 5.22449 67.395918 30.82449 78.889796 66.35102 11.493878 35.526531 2.089796 73.665306-24.555102 99.787755l-102.4 99.787755c-13.061224 12.538776-19.330612 31.346939-16.195919 49.110204l24.032654 141.061225c6.269388 37.093878-8.359184 73.142857-38.661225 95.085714-30.302041 21.942857-69.485714 24.555102-102.4 7.314286L538.122449 836.440816c-16.195918-8.359184-35.526531-8.359184-51.722449 0l-126.955102 66.87347c-14.628571 7.314286-30.302041 10.971429-45.453061 10.971428z m162.481632-96.653061z" fill="#F2CB51"/></svg>
+                  </span>
+                </h1>
+                {/* Crayon stroke underline */}
+                <div className="mt-1 w-full" style={{
+                  height: '6px',
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg width='200' height='6' viewBox='0 0 200 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 3 Q10 1 20 3 Q30 5 40 3 Q50 1 60 3 Q70 5 80 3 Q90 1 100 3 Q110 5 120 3 Q130 1 140 3 Q150 5 160 3 Q170 1 180 3 Q190 5 200 3' fill='none' stroke='${encodeURIComponent(earthyColors.brickRed)}' stroke-width='2.5' stroke-linecap='round' opacity='0.4'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'repeat-x',
+                  backgroundSize: '200px 6px',
+                }} />
+              </div>
+
+              {/* Subtitle — single line, auto-shrink to fit body area width */}
+              <AutoFitSubtitle
+                className="text-sm opacity-75 font-bold"
+                style={{ 
+                  color: earthyColors.brown,
+                  fontFamily: '"Noto Serif SC", serif',
+                }}
+                maxWidth={322}
+              >
+                {subtitle}
+              </AutoFitSubtitle>
+            </div>
+
+            {/* Divider with doodle dots */}
+            <div className="mx-4 flex items-center gap-2 shrink-0 select-none" style={{ color: earthyColors.mustardYellow }}>
+              <div className="flex-1 border-t-2 border-dashed opacity-40" style={{ borderColor: earthyColors.brown }} />
+              <span className="text-xs opacity-60">✿</span>
+              <span className="text-xs opacity-40">❋</span>
+              <span className="text-xs opacity-60">✿</span>
+              <div className="flex-1 border-t-2 border-dashed opacity-40" style={{ borderColor: earthyColors.brown }} />
+            </div>
+
+            {/* Body text area */}
+            <div 
+              className={`relative mx-4 mt-2 ${flexGrowClass} cursor-text ${minHeightClass}`}
+              onClick={handleContainerClick}
+            >
+              {/* Lined paper effect — 使用 linear-gradient + background-size/repeat 实现，
+                  html2canvas-pro 不支持 repeating-linear-gradient，但支持普通 linear-gradient */}
+              <div className="absolute inset-0 pointer-events-none" style={{
+                backgroundImage: `linear-gradient(to bottom, transparent 27px, ${earthyColors.brown} 27px)` ,
+                backgroundSize: '100% 28px',
+                backgroundRepeat: 'repeat',
+                backgroundPosition: '0 4px',
+                opacity: 0.08,
+              }} />
+
+              {/* Left margin crayon line */}
+              <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-full" style={{ 
+                backgroundColor: earthyColors.brickRed,
+                opacity: 0.2,
+                height: isLongText ? '100%' : undefined,
+              }} />
+
+              <div
+                ref={editableRef}
+                contentEditable={!isExporting}
+                onInput={(e) => handleInput(e, false)}
+                onCompositionStart={() => isComposing.current = true}
+                onCompositionEnd={() => isComposing.current = false}
+                suppressContentEditableWarning={true}
+                className={`${getBodyClasses()} w-full pl-4 pr-1 py-1 block outline-none opacity-90 transform-none ${isLongText ? 'min-h-[400px]' : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
+                style={{ 
+                  color: earthyColors.brown,
+                  lineHeight: '28px',
+                }}
+              />
+            </div>
+
+            {/* Footer — author as cute "Written by" */}
+            <div className="mx-4 mb-4 mt-auto pt-3 shrink-0 flex-none flex justify-between items-end relative z-10" style={{ marginTop: isLongText ? 'auto' : '0' }}>
+              {/* Left: Author with cat paw avatar */}
+                <div className="flex items-center gap-2" style={{ paddingBottom: '2px' }}>
+                {/* Mini cat paw avatar circle */}
+                <div 
+                  className="w-8 h-8 rounded-full flex items-center justify-center select-none"
+                  style={{ 
+                    backgroundColor: `${earthyColors.forestGreen}20`,
+                    border: `2px solid ${earthyColors.forestGreen}`,
+                    borderRadius: '50% 45% 55% 48%',
+                  }}
+                >
+                  <svg viewBox="0 0 1024 1024" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M578.358 232.332l0.665 1.664 0.665-1.065c40.429-58.962 98.825-76.298 171.095-49.313l2.696 1c60.558 23.424 92.169 70.772 97.992 130.466 1.963 20.065 0.665 41.393-2.829 60.693l-0.864 4.59 1.663-0.332a95.663 95.663 0 0 1 38.864-0.2l2.662 0.6c40.728 9.317 75.666 49.578 87.844 98.49 13.509 54.138-2.297 109.472-48.348 149.068-61.258 54.836-94.631 136.657-99.755 246.56a19.498 19.498 0 0 1-20.43 18.568 19.498 19.498 0 0 1-18.634-20.33C797.2 753.137 834.6 661.5 904.576 598.777c34.872-29.946 46.317-70.14 36.269-110.47-8.885-35.702-33.607-64.252-58.663-69.975-14.906-3.46-29.713-0.565-43.654 6.656a80.889 80.889 0 0 0-9.584 5.823l-1.664 1.23-2.163 1.664-0.399 0.266-0.233 0.233-0.366 0.233-1.564 0.665-4.658 1.897-1.065 0.2-1.297 0.166-1.598 0.1-3.193-0.166-5.857-1.83-6.389-4.991-3.726-6.921-0.8-5.723 0.234-2.996 0.333-1.463 0.166-0.666 1.864-4.292 0.5-0.998 0.265-0.4 0.4-0.532 0.166-0.166 0.2-0.333c9.482-14.974 17.734-53.572 14.44-87.145-4.492-45.918-27.384-80.224-73.203-97.958-69.11-26.686-115.793-4.226-147.736 72.404-7.42 17.735-33.44 15.206-37.267-3.627-18.967-93.8-66.416-130.667-147.937-117.324-89.573 16.97-119.453 69.21-93.932 166.703 4.724 18.001-16.238 31.677-30.979 20.197-42.457-33.074-87.244-35.204-138.42-5.923l-1.63 0.932-1.464 1.13c-47.814 36.603-58.33 73.004-41.725 118.556l0.798 2.197 1.331 3.393 0.699 1.697 1.431 3.394 0.764 1.665 1.532 3.426 1.63 3.394 1.73 3.461 1.797 3.46 1.93 3.56 1.996 3.594 2.163 3.66 2.263 3.76 2.395 3.86 2.53 3.96 2.661 4.06 2.795 4.225 2.962 4.325 3.128 4.526 3.26 4.658 3.46 4.825 5.491 7.62 7.986 10.846 13.941 18.633c11.148 14.907 20.33 33.607 27.618 56.067l1.73 5.49c4.492 14.774 8.186 31.145 11.114 49.08l1.098 6.787 0.998 6.988 0.466 3.493 0.864 7.188 0.833 7.32 0.732 7.454 0.332 3.793 0.666 7.686 0.566 7.852c0.2 2.63 0.332 5.292 0.499 7.987l0.433 8.118 0.366 8.319 0.333 8.419 0.2 8.551 0.065 4.358 0.133 8.818 0.034 8.951v4.525l-0.034 9.184-0.066 4.658-0.133 9.383-0.133 4.759-0.233 9.65-0.333 9.749a19.498 19.498 0 0 1-20.264 18.733 19.498 19.498 0 0 1-18.833-20.131l0.333-9.417 0.133-4.658 0.2-9.183 0.166-9.051 0.067-8.851V810.9l-0.133-8.418-0.167-8.252-0.233-8.12-0.166-3.992-0.333-7.853-0.4-7.72a793.353 793.353 0 0 0-0.233-3.826l-0.498-7.453-0.532-7.32-0.666-7.188-0.665-6.988a606.252 606.252 0 0 0-0.333-3.494l-0.8-6.754-0.864-6.655-0.433-3.227-0.931-6.389c-6.655-43.123-17.636-75.299-32.81-96.328l-13.207-17.702-6.588-8.917-6.156-8.419-3.86-5.323-5.457-7.72-3.394-4.892-3.26-4.758-3.095-4.658-2.961-4.459-2.795-4.359-2.663-4.259-2.495-4.192-1.231-2.03-2.33-4.06-1.13-1.996-2.164-3.993-1.065-1.963-1.996-3.894-1.93-3.892-1.83-3.893-1.763-3.86a241.902 241.902 0 0 1-0.832-1.963l-1.664-3.893a248.092 248.092 0 0 1-0.764-1.963l-1.565-3.993c-24.124-63.388-8.252-119.121 56.333-167.368a19.565 19.565 0 0 1 1.763-1.165c50.244-29.614 98.89-35.304 144.143-16.804l1.565 0.666v-0.333c-10.317-92.035 33.804-150.83 129.9-170.195l3.36-0.666c87.244-14.308 148.036 19.798 178.815 98.292z m-37.367 239.24c47.082 7.852 82.852 31.943 112.266 63.82 43.19 46.85 65.384 99.888 65.218 158.75-0.067 20.43-4.725 39.796-17.969 56.565-19.431 24.69-48.347 33.375-82.086 32.044-29.382-1.198-56-9.417-76.698-29.947-5.622-5.557-12.544-10.215-19.297-14.807a53.072 53.072 0 0 0-46.751-7.52c-8.485 2.496-17.303 4.859-24.889 8.718-25.488 12.91-52.773 11.978-80.257 4.326-36.734-10.315-63.686-30.446-70.541-64.651-2.895-14.376-2.895-30.314 1.265-44.088 24.123-79.726 80.09-134.66 171.261-160.282a149.2 149.2 0 0 1 68.478-2.928z m262.499 6.588a63.553 63.553 0 1 1 63.52 110.038 63.553 63.553 0 0 1-63.554-110.038z m-582.296-93.2a84.682 84.682 0 1 1 0 169.365 84.682 84.682 0 0 1 0-169.365z m385.28-68.545a84.682 84.682 0 1 1 161.114 52.374 84.682 84.682 0 0 1-161.114-52.34z m-254.08-42.325a84.682 84.682 0 1 1 161.079 52.34 84.682 84.682 0 0 1-161.08-52.34z" fill="${earthyColors.forestGreen}" />
+                  </svg>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[14px] lowercase tracking-wide opacity-70 font-pingfang" style={{ marginBottom: '-8px' }}>written by</span>
+                  <span className="text-[16px] font-bold font-serif-sc" style={{ 
+                    color: earthyColors.brown,
+                  }}>{author}</span>
+                </div>
+              </div>
+
+              {/* Right: Date — scrapbook luggage tag */}
+              <div className="select-none" style={{ transform: 'rotate(6deg)' }}>
+                <div className="relative">
+                  {/* Tag body */}
+                  <div className="relative px-2 py-0 flex items-center justify-center" style={{
+                    backgroundColor: `${earthyColors.mustardYellow}20`,
+                    border: `2px solid ${earthyColors.mustardYellow}`,
+                    borderRadius: '4px 10px 10px 4px',
+                    lineHeight: 0,
+                  }}>
+                    {/* Hole punch on left */}
+                    <div className="absolute left-[3px] top-1/2 -translate-y-1/2 w-[5px] h-[5px] rounded-full" style={{ 
+                      border: `1.5px solid ${earthyColors.mustardYellow}`,
+                      backgroundColor: earthyColors.cream,
+                    }} />
+                    {/* Date text */}
+                    <span className="text-[20px] font-black leading-none font-pingfang inline-block" style={{ 
+                      color: earthyColors.brown,
+                      transform: 'translate(3px, 1px)',
+                    }}>
+                      {String(new Date().getMonth() + 1)}/{String(new Date().getDate())}
+                    </span>
+                  </div>
+                  {/* String loop from hole */}
+                  <svg width="10" height="14" viewBox="0 0 10 14" className="absolute -left-[6px] top-1/2 -translate-y-1/2" style={{ overflow: 'visible' }}>
+                    <path d="M8 7 Q0 2 3 0 Q6 -1 8 3" stroke={earthyColors.brown} strokeWidth="0.8" fill="none" opacity="0.35" strokeLinecap="round" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom decorative washi-tape strip */}
+          <div className="mt-2 flex items-center justify-center gap-3 shrink-0 flex-none select-none opacity-60">
+            <div className="flex gap-1">
+              {[earthyColors.brickRed, earthyColors.forestGreen, earthyColors.mustardYellow, earthyColors.brickRed].map((c, i) => (
+                <div key={i} className="w-5 h-1.5 rounded-full" style={{ backgroundColor: c, opacity: 0.5 }} />
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div 
         className={`relative z-10 p-6 flex flex-col ${isLongText ? 'flex-1' : 'flex-1'}`}
@@ -591,15 +839,17 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
         minHeight: containerMinHeight ? `${containerMinHeight}px` : undefined,
       }}
     >
-      <div 
-        className="absolute inset-0 z-0"
-        style={{ 
-          background: `radial-gradient(circle at 10% 20%, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 80%)`,
-          opacity: 0.6
-        }}
-      />
+      {layoutStyle !== 'storybook' && (
+        <div 
+          className="absolute inset-0 z-0"
+          style={{ 
+            background: `radial-gradient(circle at 10% 20%, rgba(255,255,255,1) 0%, rgba(255,255,255,0) 80%)`,
+            opacity: 0.6
+          }}
+        />
+      )}
       
-      {layoutStyle !== 'duality' && (
+      {layoutStyle !== 'duality' && layoutStyle !== 'storybook' && (
         <div 
             className="absolute inset-0 pointer-events-none z-0"
             style={{

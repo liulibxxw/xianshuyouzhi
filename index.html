@@ -8,6 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fontsapi.zeoseven.com/508/main/result.css" onload="this.rel='stylesheet'" rel="preload" as="style" crossorigin />
+    <noscript><link rel="stylesheet" href="https://fontsapi.zeoseven.com/508/main/result.css" /></noscript>
     <script>
       tailwind.config = {
         theme: {
@@ -24,6 +27,7 @@
               'sans-sc': ['"Noto Serif SC"', 'serif'],
               'bold-sc': ['"Noto Serif SC"', 'serif'],
               'jianghu': ['"Noto Serif SC"', 'serif'],
+              'storybook': ['"Caveat"', '"Patrick Hand"', 'cursive'],
               'serif': ['"Noto Serif SC"', 'serif'],
               'sans': ['"Noto Serif SC"', 'serif'],
             },
@@ -41,6 +45,14 @@
       }
     </script>
     <style>
+      @font-face {
+        font-family: "pingfangqignchunti";
+        src: url("/temp_font.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+
       :root {
         --font-main: "Noto Serif SC", serif;
       }
@@ -76,6 +88,14 @@
         font-family: var(--font-main) !important;
       }
 
+      /* 特殊字体覆盖 */
+      .font-pingfang, .font-pingfang * {
+        font-family: "pingfangqignchunti", cursive !important;
+      }
+      .font-caveat, .font-caveat * {
+        font-family: "Caveat", "Noto Serif SC", cursive !important;
+      }
+
       /* 确保 Tailwind 注入的基础样式不会覆盖字体 */
       *, *::before, *::after {
         font-family: inherit;
@@ -98,6 +118,103 @@
       ::-webkit-scrollbar {
         display: none;
       }
+
+      /* ===== Storybook Crayon Style ===== */
+      .storybook-paper-bg {
+        background-color: #FFF8F0;
+        background-image:
+          url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      }
+      .storybook-border {
+        border: 3px solid #5B4A3F;
+        border-radius: 12px;
+        position: relative;
+      }
+      .storybook-border::before {
+        content: '';
+        position: absolute;
+        inset: 3px;
+        border: 2px dashed rgba(91, 74, 63, 0.25);
+        border-radius: 8px;
+        pointer-events: none;
+      }
+      .crayon-stroke {
+        background-image: url("data:image/svg+xml,%3Csvg width='200' height='6' viewBox='0 0 200 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 3 Q10 1 20 3 Q30 5 40 3 Q50 1 60 3 Q70 5 80 3 Q90 1 100 3 Q110 5 120 3 Q130 1 140 3 Q150 5 160 3 Q170 1 180 3 Q190 5 200 3' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' opacity='0.6'/%3E%3C/svg%3E");
+        background-repeat: repeat-x;
+        background-position: bottom;
+        background-size: 200px 6px;
+        padding-bottom: 8px;
+      }
+      .wobbly-box {
+        border: 2.5px solid currentColor;
+        border-radius: 8px 12px 6px 14px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .gold-star {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        filter: drop-shadow(0 1px 2px rgba(212,168,67,0.4));
+      }
+      .gold-star svg {
+        width: 1em;
+        height: 1em;
+      }
+      .crayon-underline {
+        text-decoration: none;
+        background-image: url("data:image/svg+xml,%3Csvg width='100' height='8' viewBox='0 0 100 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 6 Q25 2 50 5 Q75 8 100 4' fill='none' stroke='%23C7442B' stroke-width='2' stroke-linecap='round' opacity='0.5'/%3E%3C/svg%3E");
+        background-repeat: repeat-x;
+        background-position: bottom;
+        background-size: 100px 8px;
+        padding-bottom: 4px;
+      }
+      .storybook-checkbox {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border: 2.5px solid #5B4A3F;
+        border-radius: 4px 6px 3px 5px;
+        margin-right: 6px;
+        flex-shrink: 0;
+        position: relative;
+      }
+      .storybook-checkbox.checked::after {
+        content: '✓';
+        font-size: 14px;
+        font-weight: 900;
+        color: #2D5F3E;
+        font-family: 'Caveat', cursive;
+      }
+      @keyframes wiggle {
+        0%, 100% { transform: rotate(-1deg); }
+        50% { transform: rotate(1deg); }
+      }
+      .wiggle-hover:hover {
+        animation: wiggle 0.3s ease-in-out;
+      }
+      .storybook-tape {
+        position: absolute;
+        width: 60px;
+        height: 24px;
+        background: rgba(255, 230, 150, 0.7);
+        transform: rotate(-5deg);
+        border-radius: 2px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      }
+      .storybook-tape-right {
+        position: absolute;
+        width: 60px;
+        height: 24px;
+        background: rgba(255, 230, 150, 0.7);
+        transform: rotate(5deg);
+        border-radius: 2px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      }
     </style>
   <script type="importmap">
 {
@@ -111,7 +228,7 @@
     "vite": "https://esm.sh/vite@^7.2.7",
     "path": "https://esm.sh/path@^0.12.7",
     "url": "https://esm.sh/url@^0.11.4",
-    "html2canvas-pro": "https://esm.sh/html2canvas-pro@1.6.7",
+    "html-to-image": "https://esm.sh/html-to-image@1.11.13",
     "@capacitor/core": "https://esm.sh/@capacitor/core@^6.0.0",
     "@capacitor/filesystem": "https://esm.sh/@capacitor/filesystem@^6.0.0",
     "@capacitor/share": "https://esm.sh/@capacitor/share@^6.0.0"
@@ -119,9 +236,10 @@
 }
 </script>
 <link rel="stylesheet" href="/index.css">
-<!-- 全局字体强制覆盖：必须在 Tailwind CDN 注入之后加载，确保优先级最高 -->
+<!-- 全局字体强制覆盖：必须在 Tailwind CDN 注入之后加载，确保优先级最高。
+     排除特殊字体类（如 .font-caveat/.font-pingfang），以允许这些类生效 -->
 <style id="font-override">
-  html, body, #root, #root * {
+  html, body, #root {
     font-family: "Noto Serif SC", serif !important;
   }
 </style>
