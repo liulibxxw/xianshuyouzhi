@@ -19,41 +19,8 @@ import ExportModal from './ExportModal';
 import RichTextToolbar from './RichTextToolbar';
 import { ArrowDownTrayIcon, PaintBrushIcon, BookmarkIcon, ArrowsRightLeftIcon, SwatchIcon } from '@heroicons/react/24/solid';
 import { toPng } from 'html-to-image';
-import { getCleanContent } from './nativeExport';
 
-const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@400;500;700;900&family=ZCOOL+QingKe+HuangYou&display=swap";
-
-/** Collect debug info about the DOM state at export time */
-function collectExportDebugInfo(previewEl: HTMLElement, state: CoverState): string {
-  const lines: string[] = [];
-  lines.push(`=== Export Debug Info ===${new Date().toISOString()}`);
-  lines.push(`UA: ${navigator.userAgent}`);
-  lines.push(`Mode: ${state.mode}, Layout: ${state.layoutStyle}`);
-  lines.push(`Container: ${previewEl.offsetWidth}x${previewEl.offsetHeight} (scroll: ${previewEl.scrollWidth}x${previewEl.scrollHeight})`);
-  
-  // Find all contentEditable areas and report their dimensions + raw HTML
-  const editables = previewEl.querySelectorAll('[contenteditable]');
-  editables.forEach((el, idx) => {
-    const htmlEl = el as HTMLElement;
-    lines.push(`--- Editable #${idx} ---`);
-    lines.push(`Size: ${htmlEl.offsetWidth}x${htmlEl.offsetHeight} (scroll: ${htmlEl.scrollWidth}x${htmlEl.scrollHeight})`);
-    lines.push(`Style.height: "${htmlEl.style.height}", style.minHeight: "${htmlEl.style.minHeight}"`);
-    lines.push(`ComputedHeight: ${getComputedStyle(htmlEl).height}, minH: ${getComputedStyle(htmlEl).minHeight}`);
-    const rawHtml = htmlEl.innerHTML;
-    lines.push(`RawHTML(${rawHtml.length}): ${rawHtml.substring(0, 500)}${rawHtml.length > 500 ? '...[truncated]' : ''}`);
-    const cleaned = getCleanContent(rawHtml);
-    lines.push(`CleanHTML(${cleaned.length}): ${cleaned.substring(0, 500)}${cleaned.length > 500 ? '...[truncated]' : ''}`);
-  });
-
-  // Report all direct children of the preview container
-  lines.push(`--- Preview children (${previewEl.children.length}) ---`);
-  Array.from(previewEl.children).forEach((child, idx) => {
-    const el = child as HTMLElement;
-    lines.push(`  [${idx}] ${el.tagName}.${el.className.substring(0, 80)} => ${el.offsetWidth}x${el.offsetHeight}`);
-  });
-
-  return lines.join('\n');
-}
+const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;700;900&display=swap";
 
 async function getEmbedFontCSS() {
     try {
@@ -142,7 +109,6 @@ const App: React.FC = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportImage, setExportImage] = useState<string | null>(null);
-  const [lastExportDebug, setLastExportDebug] = useState<string | null>(null);
   const [presets, setPresets] = useState<ContentPreset[]>(() => {
     try {
       const saved = localStorage.getItem('coverPresets_v3');
@@ -171,10 +137,29 @@ const App: React.FC = () => {
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [showBgColorPalette, setShowBgColorPalette] = useState(false);
   const [previewScale, setPreviewScale] = useState(1);
+  const [previewMinHeight, setPreviewMinHeight] = useState(0);
+  const [scaleMarginBottom, setScaleMarginBottom] = useState(0);
   const [viewportHeight, setViewportHeight] = useState<string>('100%');
 
   const previewRef = useRef<HTMLDivElement>(null);
   const bgColorPaletteRef = useRef<HTMLDivElement>(null);
+
+  // 监听 CoverPreview 实际高度，计算 scale 导致的布局多余空间
+  useEffect(() => {
+    if (state.mode !== 'long-text' || !previewRef.current) {
+      setScaleMarginBottom(0);
+      return;
+    }
+    const el = previewRef.current;
+    const update = () => {
+      const h = el.offsetHeight;
+      setScaleMarginBottom(h * (1 - previewScale));
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    update();
+    return () => observer.disconnect();
+  }, [state.mode, previewScale]);
   const bgColorButtonRef = useRef<HTMLButtonElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
@@ -233,15 +218,14 @@ const App: React.FC = () => {
             const container = previewContainerRef.current;
             const availableW = container.clientWidth - 48; 
             const targetW = 400;
+            const scale = Math.min(availableW / targetW, 1);
+            setPreviewScale(scale);
+            // 长文模式：计算容器可视高度，让预览恰好占满导航栏到底部工具栏的间隔
             if (state.mode === 'long-text') {
-              // Long-text mode: scale by width only, avoid height-based deformation
-              setPreviewScale(Math.min(availableW / targetW, 1));
+              const containerH = container.clientHeight;
+              setPreviewMinHeight(Math.floor(containerH / scale));
             } else {
-              const availableH = container.clientHeight - 64;
-              const targetH = 440;
-              const scaleW = availableW / targetW;
-              const scaleH = availableH / targetH;
-              setPreviewScale(Math.min(scaleW, scaleH, 1));
+              setPreviewMinHeight(0);
             }
         }
     };
@@ -338,8 +322,7 @@ const App: React.FC = () => {
 
     try {
       await document.fonts.ready;
-      // 等待 React 重新渲染 + DOM 重排完成（isExporting=true 触发的布局变化）
-      await new Promise(resolve => setTimeout(resolve, 500)); 
+      await new Promise(resolve => setTimeout(resolve, 200)); 
 
       const fontCss = await getEmbedFontCSS();
 
@@ -383,15 +366,9 @@ const App: React.FC = () => {
         };
       }
 
-      // 收集调试信息
-      const debugInfo = collectExportDebugInfo(previewRef.current, state);
-      console.log('[Export Debug]', debugInfo);
-
       const dataUrl = await toPng(previewRef.current, exportOptions);
 
       setExportImage(dataUrl);
-      // 保存调试信息到 state 以供用户查看
-      setLastExportDebug(debugInfo);
     } catch (error) {
       console.error("Export failed:", error);
       alert("导出失败，请重试");
@@ -466,13 +443,14 @@ const App: React.FC = () => {
                 className="flex-1 overflow-y-auto overflow-x-hidden flex justify-center custom-scrollbar items-start"
             >
                <div className="transition-all duration-300 w-full lg:w-auto p-0 lg:p-8 min-h-full lg:h-auto flex justify-center items-center">
-                  <div style={{ transform: `scale(${previewScale})`, transformOrigin: 'center center' }}>
+                  <div style={{ transform: `scale(${previewScale})`, transformOrigin: 'center center', marginBottom: state.mode === 'long-text' && scaleMarginBottom > 0 ? `-${scaleMarginBottom}px` : undefined }}>
                     <CoverPreview 
                         ref={previewRef}
                         state={state}
                         onBodyTextChange={(val) => handleStateChange({ bodyText: val })}
                         onSecondaryBodyTextChange={(val) => handleStateChange({ secondaryBodyText: val })}
                         isExporting={isExporting}
+                        longTextMinHeight={previewMinHeight}
                     />
                   </div>
                </div>
@@ -569,7 +547,6 @@ const App: React.FC = () => {
             isExporting={isExporting}
             onClose={() => setShowExportModal(false)}
             onDownload={downloadImage}
-            debugInfo={lastExportDebug}
           />
         )}
 
