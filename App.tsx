@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { CoverState, ContentPreset, EditorTab, AdvancedPreset, TransformationRule } from './types';
 import { 
   INITIAL_TITLE, 
@@ -19,7 +19,7 @@ import EditorControls, { MobileDraftsStrip, MobileStylePanel, ContentEditorModal
 import { MobilePresetPanel } from './components/PresetPanel';
 import ExportModal from './components/ExportModal';
 import RichTextToolbar from './components/RichTextToolbar';
-import { ArrowDownTrayIcon, PaintBrushIcon, BookmarkIcon, ArrowsRightLeftIcon, SwatchIcon, SparklesIcon, MagnifyingGlassIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
+import { ArrowDownTrayIcon, PaintBrushIcon, BookmarkIcon, ArrowsRightLeftIcon, SparklesIcon, MagnifyingGlassIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import { toPng } from 'html-to-image';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -28,6 +28,27 @@ import { Share } from '@capacitor/share';
 const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;700;900&display=swap";
 const ZEOSEVEN_FONT_URL = "https://fontsapi.zeoseven.com/508/main/result.css";
 const PINGFANG_FONT_URL = "/temp_font.woff2";
+const DEFAULT_PRESET_IDS = new Set(DEFAULT_PRESETS.map(p => p.id));
+const EMPTY_PREVIEW_PLACEHOLDER = {
+  title: '标题',
+  subtitle: '副标题',
+  category: '标签、分类一、分类二',
+  author: '作者'
+};
+
+const loadCustomPresetsSnapshot = (): ContentPreset[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const saved = localStorage.getItem('coverPresets_v3');
+    if (!saved) return [];
+    const parsed: ContentPreset[] = JSON.parse(saved);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(p => !DEFAULT_PRESET_IDS.has(p.id));
+  } catch {
+    return [];
+  }
+};
+
 
 const blobToDataURL = (blob: Blob) => {
   return new Promise<string>((resolve, reject) => {
@@ -97,6 +118,7 @@ async function getEmbedFontCSS() {
 }
 
 const App: React.FC = () => {
+  const customPresetsSnapshot = useMemo(() => loadCustomPresetsSnapshot(), []);
   const [state, setState] = useState<CoverState>(() => {
     try {
       const saved = localStorage.getItem('coverState_v3');
@@ -125,27 +147,7 @@ const App: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [exportImage, setExportImage] = useState<string | null>(null);
   const [exportFilename, setExportFilename] = useState<string>('cover.png');
-  const [presets, setPresets] = useState<ContentPreset[]>(() => {
-    try {
-      const saved = localStorage.getItem('coverPresets_v3');
-      if (saved) {
-        const parsed: ContentPreset[] = JSON.parse(saved);
-        const defaultIds = new Set(DEFAULT_PRESETS.map(p => p.id));
-        const merged = parsed.map(p => {
-          if (defaultIds.has(p.id)) {
-            const def = DEFAULT_PRESETS.find(d => d.id === p.id)!;
-            return { ...def };
-          }
-          return p;
-        });
-        for (const def of DEFAULT_PRESETS) {
-          if (!merged.find(p => p.id === def.id)) merged.push({ ...def });
-        }
-        return merged;
-      }
-      return DEFAULT_PRESETS;
-    } catch { return DEFAULT_PRESETS; }
-  });
+  const [presets, setPresets] = useState<ContentPreset[]>(customPresetsSnapshot);
   const [advancedPresets, setAdvancedPresets] = useState<AdvancedPreset[]>(() => {
     try {
       const saved = localStorage.getItem('advancedPresets_v1');
@@ -231,8 +233,8 @@ const App: React.FC = () => {
 
     if (state.mode === 'long-text') {
       const containerH = container.clientHeight;
-      const scrollable = container.querySelector('[data-long-text-scroll]') as HTMLElement | null;
-      const scrollHeight = scrollable ? scrollable.scrollHeight : container.scrollHeight;
+      const previewEl = previewRef.current;
+      const scrollHeight = previewEl ? previewEl.scrollHeight : container.scrollHeight;
       const desiredHeight = Math.max(containerH, scrollHeight * scale);
       setPreviewMinHeight(Math.ceil(desiredHeight / scale));
     } else {
@@ -460,7 +462,17 @@ const App: React.FC = () => {
   };
 
   const handleCreateNew = () => {
-    setState(prev => ({ ...prev, title: '', subtitle: '', bodyText: '', secondaryBodyText: '', dualityBodyText: '', dualitySecondaryBodyText: '', category: '', author: INITIAL_AUTHOR }));
+    setState(prev => ({
+      ...prev,
+      title: '',
+      subtitle: '',
+      bodyText: '',
+      secondaryBodyText: '',
+      dualityBodyText: '',
+      dualitySecondaryBodyText: '',
+      category: '',
+      author: ''
+    }));
     setActivePresetId(null); setIsCreatingNew(true); setShowContentModal(true);
   }
 
@@ -573,6 +585,7 @@ const App: React.FC = () => {
     bodyText: state.layoutStyle === 'duality' ? state.dualityBodyText : state.bodyText,
     secondaryBodyText: state.layoutStyle === 'duality' ? state.dualitySecondaryBodyText : state.secondaryBodyText
   };
+  const previewStateForDisplay = effectivePreviewState;
 
   return (
     <div className="flex flex-col lg:flex-row fixed inset-0 w-full h-full supports-[height:100dvh]:h-[100dvh] bg-gray-50 overflow-hidden text-gray-800">
@@ -586,7 +599,7 @@ const App: React.FC = () => {
                <div className="absolute inset-0 overflow-y-auto overflow-x-hidden flex flex-col items-center custom-scrollbar">
                   <div className={`flex justify-center w-full ${state.mode === 'cover' ? 'flex-1 items-center p-4 lg:p-8 min-h-full' : 'items-start pt-0 px-4 lg:pt-0'}`}>
                     <div className="transition-transform duration-300 relative flex justify-center" style={{ transform: `scale(${previewScale})`, transformOrigin: state.mode === 'cover' ? 'center center' : 'top center', width: '400px', marginBottom: state.mode === 'long-text' && scaleMarginBottom > 0 ? `-${scaleMarginBottom}px` : undefined }}>
-                      <CoverPreview ref={previewRef} state={effectivePreviewState} onBodyTextChange={val => handleStateChange({ bodyText: val })} onSecondaryBodyTextChange={val => handleStateChange({ secondaryBodyText: val })} isExporting={isExporting} longTextMinHeight={previewMinHeight} />
+                      <CoverPreview ref={previewRef} state={previewStateForDisplay} onBodyTextChange={val => handleStateChange({ bodyText: val })} onSecondaryBodyTextChange={val => handleStateChange({ secondaryBodyText: val })} isExporting={isExporting} longTextMinHeight={previewMinHeight} />
                     </div>
                   </div>
                </div>
@@ -598,18 +611,23 @@ const App: React.FC = () => {
             )}
             <div className="lg:hidden flex-none z-40 flex flex-col shadow-[0_-4px_20px_rgba(0,0,0,0.08)] bg-white" style={{ paddingBottom: `${keyboardHeight}px`, transition: 'padding-bottom 0.1s ease-out' }}>
                 <div className="relative w-full bg-gray-50/50 border-t border-gray-100/50">
-                    {activeTab === 'drafts' && <MobileDraftsStrip presets={presets} onLoadPreset={handleLoadPreset} onDeletePreset={handleDeletePreset} onSavePreset={handleSavePreset} state={effectivePreviewState} onEditContent={() => setShowContentModal(true)} activePresetId={activePresetId} onCreateNew={handleCreateNew} onChange={handleStateChange} onExport={handleExport} />}
-                    {activeTab === 'style' && <MobileStylePanel state={effectivePreviewState} onChange={handleStateChange} onExport={handleExport} />}
-                    {activeTab === 'export' && <MobileExportPanel state={effectivePreviewState} onChange={handleStateChange} onExport={handleExport} isExporting={isExporting} />}
-                    {activeTab === 'presets' && <MobilePresetPanel state={effectivePreviewState} presets={advancedPresets} onSavePreset={handleSaveAdvancedPreset} onDeletePreset={id => setAdvancedPresets(p => p.filter(x => x.id !== id))} onApplyPreset={handleApplyAdvancedPreset} onFormatText={handleFormatText} />}
-                    {activeTab === 'search' && <MobileSearchPanel state={effectivePreviewState} onChange={handleStateChange} onExport={handleExport} />}
-                    {!activeTab && <RichTextToolbar visible={true} state={effectivePreviewState} onChange={handleStateChange} />}
+                    {activeTab === 'drafts' && <MobileDraftsStrip presets={presets} onLoadPreset={handleLoadPreset} onDeletePreset={handleDeletePreset} onSavePreset={handleSavePreset} state={previewStateForDisplay} onEditContent={() => setShowContentModal(true)} activePresetId={activePresetId} onCreateNew={handleCreateNew} onChange={handleStateChange} onExport={handleExport} />}
+                    {activeTab === 'style' && <MobileStylePanel state={previewStateForDisplay} onChange={handleStateChange} onExport={handleExport} />}
+                    {activeTab === 'export' && <MobileExportPanel state={previewStateForDisplay} onChange={handleStateChange} onExport={handleExport} isExporting={isExporting} />}
+                    {activeTab === 'presets' && <MobilePresetPanel state={previewStateForDisplay} presets={advancedPresets} onSavePreset={handleSaveAdvancedPreset} onDeletePreset={id => setAdvancedPresets(p => p.filter(x => x.id !== id))} onApplyPreset={handleApplyAdvancedPreset} onFormatText={handleFormatText} />}
+                    {activeTab === 'search' && <MobileSearchPanel state={previewStateForDisplay} onChange={handleStateChange} onExport={handleExport} />}
+                    {!activeTab && <RichTextToolbar visible={true} state={previewStateForDisplay} onChange={handleStateChange} />}
                 </div>
                 <div className="h-16 bg-white border-t border-gray-100 flex items-center justify-around px-2 relative z-50 shrink-0">
                       <button onClick={() => toggleMobileTab('drafts')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'drafts' ? 'text-purple-600' : 'text-gray-500'}`}><BookmarkIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">草稿</span></button>
                       <button onClick={() => toggleMobileTab('style')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'style' ? 'text-purple-600' : 'text-gray-500'}`}><PaintBrushIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">风格</span></button>
                       <button onClick={() => toggleMobileTab('presets')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'presets' ? 'text-purple-600' : 'text-gray-500'}`}><SparklesIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">预设</span></button>
-                      <button ref={bgColorButtonRef} onClick={toggleBgPalette} className="w-12 h-12 rounded-full border-4 border-white shadow-lg -translate-y-4 bg-gradient-to-br from-rose-200 to-blue-200 flex items-center justify-center relative z-50" style={{ backgroundColor: state.backgroundColor }}><SwatchIcon className="w-6 h-6 text-white/80" /></button>
+                      <button 
+                        className="w-12 h-12 rounded-full border-4 border-white shadow-lg -translate-y-4 bg-white flex items-center justify-center relative z-50 overflow-hidden"
+                        style={{ backgroundColor: '#ffffff' }}
+                      >
+                        <img src="/assets/icon.png" alt="APP" className="w-40 h-40 object-contain object-center scale-[2.5] translate-x-1" />
+                      </button>
                       <button onClick={() => toggleMobileTab('search')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'search' ? 'text-purple-600' : 'text-gray-500'}`}><MagnifyingGlassIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">搜索</span></button>
                       <button onClick={handleModeToggle} className="flex flex-col items-center gap-1 text-gray-500 transition-colors w-14"><ArrowsRightLeftIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">{state.mode === 'cover' ? '长图' : '封面'}</span></button>
                       <button onClick={() => toggleMobileTab('export')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'export' ? 'text-purple-600' : 'text-gray-500'}`}><ArrowDownTrayIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">导出</span></button>

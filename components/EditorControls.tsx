@@ -302,34 +302,8 @@ export const MobileDraftsStrip: React.FC<EditorControlsProps> = ({
           {presets.length === 0 && (
             <div className="flex flex-col items-center justify-center text-center text-gray-400 gap-3 w-full">
               <BookmarkIcon className="w-8 h-8 opacity-50" />
-              <div className="space-y-1">
-                <p className="text-sm font-bold text-gray-500">暂无草稿</p>
-                <p className="text-xs text-gray-400">先写一个故事吧，再保存你的草稿</p>
-              </div>
-              <div className="w-full max-w-xs bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-100 overflow-hidden">
-                <div className="p-3 text-left">
-                  <div className="text-[10px] text-gray-400 uppercase tracking-[0.2em] mb-1">默认指引</div>
-                  <div className="text-sm font-serif-sc text-gray-700">玄途，标题拾遗簿</div>
-                </div>
-                <div className="p-3 grid grid-cols-2 gap-2 text-left">
-                  <div>
-                    <div className="text-[10px] text-gray-400">分类一</div>
-                    <div className="text-xs font-bold text-gray-600">玄途</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-gray-400">分类二</div>
-                    <div className="text-xs font-bold text-gray-600">标题拾遗簿</div>
-                  </div>
-                </div>
-                <div className="p-3 text-left">
-                  <div className="text-[10px] text-gray-400">作者署名</div>
-                  <div className="text-xs font-serif-sc text-gray-700">玄途的通讯员</div>
-                </div>
-                <div className="p-3 pt-0 text-left">
-                  <div className="text-[10px] text-gray-400">副标题</div>
-                  <div className="text-xs text-gray-500 leading-relaxed">写一个句子，告诉读者这个故事的温度。</div>
-                </div>
-              </div>
+              <p className="text-sm font-bold text-gray-500">暂无草稿</p>
+              <p className="text-xs text-gray-400">图片内已自动填充占位文本</p>
             </div>
           )}
           {presets.map((preset, idx) => (
@@ -376,8 +350,7 @@ export const MobileDraftsStrip: React.FC<EditorControlsProps> = ({
                     </div>
                  </div>
               </div>
-               );
-             })}
+          ))}
        </div>
     </div>
   );
@@ -644,34 +617,8 @@ const EditorControls: React.FC<EditorControlsProps> = ({
             <div className="col-span-2">
               <div className="w-full border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50 p-6 flex flex-col items-center text-center gap-3 text-gray-400">
                 <BookmarkIcon className="w-8 h-8 text-gray-300" />
-                <div className="space-y-1">
-                  <p className="text-sm font-bold text-gray-500">暂无草稿</p>
-                  <p className="text-xs text-gray-400">先写一个故事吧，再保存你的草稿</p>
-                </div>
-                <div className="w-full max-w-xs bg-white rounded-xl border border-gray-100 shadow-sm divide-y divide-gray-100 overflow-hidden">
-                  <div className="p-3 text-left">
-                    <div className="text-[10px] text-gray-400 uppercase tracking-[0.2em] mb-1">默认指引</div>
-                    <div className="text-sm font-serif-sc text-gray-700">玄途，标题拾遗簿</div>
-                  </div>
-                  <div className="p-3 grid grid-cols-2 gap-2 text-left">
-                    <div>
-                      <div className="text-[10px] text-gray-400">分类一</div>
-                      <div className="text-xs font-bold text-gray-600">玄途</div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] text-gray-400">分类二</div>
-                      <div className="text-xs font-bold text-gray-600">标题拾遗簿</div>
-                    </div>
-                  </div>
-                  <div className="p-3 text-left">
-                    <div className="text-[10px] text-gray-400">作者署名</div>
-                    <div className="text-xs font-serif-sc text-gray-700">玄途的通讯员</div>
-                  </div>
-                  <div className="p-3 pt-0 text-left">
-                    <div className="text-[10px] text-gray-400">副标题</div>
-                    <div className="text-xs text-gray-500 leading-relaxed">写一个句子，告诉读者这个故事的温度。</div>
-                  </div>
-                </div>
+                <p className="text-sm font-bold text-gray-500">暂无草稿</p>
+                <p className="text-xs text-gray-400">图片内已自动填充占位文本</p>
               </div>
             </div>
           )}
@@ -700,7 +647,7 @@ const EditorControls: React.FC<EditorControlsProps> = ({
                     </button>
                 </div>
               </div>
-          )})}
+              ))}
         </div>
     </div>
   );

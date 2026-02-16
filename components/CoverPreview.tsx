@@ -658,7 +658,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                 onCompositionStart={() => isComposing.current = true}
                 onCompositionEnd={() => isComposing.current = false}
                 suppressContentEditableWarning={true}
-                className={`${getBodyClasses()} w-full pl-4 pr-1 py-1 block outline-none opacity-90 transform-none ${isLongText ? 'min-h-[400px]' : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
+                className={`${getBodyClasses()} w-full pl-4 pr-1 py-1 block outline-none opacity-90 transform-none ${isLongText ? (isExporting ? 'h-auto' : 'min-h-[400px]') : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
                 style={{ 
                   color: earthyColors.brown,
                   lineHeight: '28px',
@@ -827,8 +827,10 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   }, [isLongText]);
 
   // 长文模式下，如果传入了 longTextMinHeight，作为容器最小高度
-  // 这样底部装饰块会贴在可视区域底部
-  const containerMinHeight = isLongText && longTextMinHeight > 0 ? longTextMinHeight : undefined;
+  // 但导出时需要移除最小高度，避免额外空白一同输出
+  const containerMinHeight = (!isExporting && isLongText && longTextMinHeight > 0)
+    ? longTextMinHeight
+    : undefined;
 
   return (
     <div 
@@ -838,6 +840,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
         ...renderingIsolation,
         minHeight: containerMinHeight ? `${containerMinHeight}px` : undefined,
       }}
+      data-long-text-scroll={isLongText ? true : undefined}
     >
       {layoutStyle !== 'storybook' && (
         <div 
