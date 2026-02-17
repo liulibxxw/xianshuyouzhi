@@ -27,7 +27,6 @@ import { Share } from '@capacitor/share';
 
 const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;700;900&display=swap";
 const ZEOSEVEN_FONT_URL = "https://fontsapi.zeoseven.com/508/main/result.css";
-const PINGFANG_FONT_URL = "/temp_font.woff2";
 const DEFAULT_PRESET_IDS = new Set(DEFAULT_PRESETS.map(p => p.id));
 const EMPTY_PREVIEW_PLACEHOLDER = {
   title: '标题',
@@ -61,10 +60,9 @@ const blobToDataURL = (blob: Blob) => {
 
 async function getEmbedFontCSS() {
     try {
-    const [googleRes, zeoRes, pingfangRes] = await Promise.all([
+    const [googleRes, zeoRes] = await Promise.all([
             fetch(GOOGLE_FONTS_URL),
       fetch(ZEOSEVEN_FONT_URL).catch(() => null),
-      fetch(PINGFANG_FONT_URL).catch(() => null),
         ]);
         let css = await googleRes.text();
         if (zeoRes) {
@@ -99,16 +97,6 @@ async function getEmbedFontCSS() {
         fontMap.forEach((base64, url) => {
             newCss = newCss.split(url).join(base64);
         });
-
-        if (pingfangRes && pingfangRes.ok) {
-          try {
-            const blob = await pingfangRes.blob();
-            const dataUrl = await blobToDataURL(blob);
-            newCss += `\n@font-face {\n  font-family: 'pingfangqignchunti';\n  src: url('${dataUrl}') format('woff2');\n  font-weight: 400;\n  font-style: normal;\n  font-display: swap;\n}`;
-          } catch (error) {
-            console.warn('Failed to embed pingfang font', error);
-          }
-        }
         
         return newCss;
     } catch (e) {
