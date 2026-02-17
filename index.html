@@ -8,9 +8,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/pingfang-font.css" />
+    <style>
+      body {
+        font-family: "Noto Serif SC", serif;
+        font-weight: normal;
+      }
+    </style>
     <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://fontsapi.zeoseven.com/508/main/result.css" onload="this.rel='stylesheet'" rel="preload" as="style" crossorigin />
-    <noscript><link rel="stylesheet" href="https://fontsapi.zeoseven.com/508/main/result.css" /></noscript>
     <script>
       tailwind.config = {
         theme: {
@@ -30,6 +35,7 @@
               'storybook': ['"Caveat"', '"Patrick Hand"', 'cursive'],
               'serif': ['"Noto Serif SC"', 'serif'],
               'sans': ['"Noto Serif SC"', 'serif'],
+              'pingfang': ['"pingfangqignchunti"', '"Noto Serif SC"', 'serif'],
             },
             keyframes: {
               progress: {
@@ -45,14 +51,6 @@
       }
     </script>
     <style>
-      @font-face {
-        font-family: "pingfangqignchunti";
-        src: url("/temp_font.woff2") format("woff2");
-        font-weight: 400;
-        font-style: normal;
-        font-display: swap;
-      }
-
       :root {
         --font-main: "Noto Serif SC", serif;
       }
@@ -73,7 +71,6 @@
         position: fixed;
         background-color: #f3f4f6;
         overscroll-behavior: none;
-        font-family: var(--font-main) !important;
       }
       
       /* 强制所有层级继承字体，特别是 contenteditable 区域 */
@@ -85,20 +82,15 @@
       }
       
       h1, h2, h3, h4, h5, h6, p, div, span, input, textarea, button, a, label, select, option, li, ul, ol, nav, section, article, aside, header, footer, main, [contenteditable], [contenteditable] * {
-        font-family: var(--font-main) !important;
+        font-family: inherit !important;
       }
 
-      /* 特殊字体覆盖 */
-      .font-pingfang, .font-pingfang * {
-        font-family: "pingfangqignchunti", cursive !important;
-      }
-      .font-caveat, .font-caveat * {
-        font-family: "Caveat", "Noto Serif SC", cursive !important;
+      .font-pingfang {
+        font-family: 'pingfangqignchunti', 'Noto Serif SC', serif !important;
       }
 
-      /* 确保 Tailwind 注入的基础样式不会覆盖字体 */
-      *, *::before, *::after {
-        font-family: inherit;
+      .font-serif-sc, .font-sans-sc, .font-bold-sc, .font-jianghu {
+        font-family: 'Noto Serif SC', serif;
       }
 
       #root {
@@ -154,14 +146,12 @@
         justify-content: center;
       }
       .gold-star {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        filter: drop-shadow(0 1px 2px rgba(212,168,67,0.4));
+        display: inline-block;
+        filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15));
       }
-      .gold-star svg {
-        width: 1em;
-        height: 1em;
+      .gold-star::before {
+        content: '⭐';
+        font-size: 14px;
       }
       .crayon-underline {
         text-decoration: none;
@@ -228,7 +218,7 @@
     "vite": "https://esm.sh/vite@^7.2.7",
     "path": "https://esm.sh/path@^0.12.7",
     "url": "https://esm.sh/url@^0.11.4",
-    "html-to-image": "https://esm.sh/html-to-image@1.11.13",
+    "html2canvas-pro": "https://esm.sh/html2canvas-pro@1.6.7",
     "@capacitor/core": "https://esm.sh/@capacitor/core@^6.0.0",
     "@capacitor/filesystem": "https://esm.sh/@capacitor/filesystem@^6.0.0",
     "@capacitor/share": "https://esm.sh/@capacitor/share@^6.0.0"
@@ -236,13 +226,6 @@
 }
 </script>
 <link rel="stylesheet" href="/index.css">
-<!-- 全局字体强制覆盖：必须在 Tailwind CDN 注入之后加载，确保优先级最高。
-     排除特殊字体类（如 .font-caveat/.font-pingfang），以允许这些类生效 -->
-<style id="font-override">
-  html, body, #root {
-    font-family: "Noto Serif SC", serif !important;
-  }
-</style>
 </head>
   <body>
     <div id="root"></div>

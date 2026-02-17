@@ -299,25 +299,19 @@ export const MobileDraftsStrip: React.FC<EditorControlsProps> = ({
              <span className="text-[10px] font-bold">新建草稿</span>
           </div>
 
-          {presets.length === 0 && (
-            <div className="flex flex-col items-center justify-center text-center text-gray-400 gap-3 w-full">
-              <BookmarkIcon className="w-8 h-8 opacity-50" />
-              <p className="text-sm font-bold text-gray-500">暂无草稿</p>
-              <p className="text-xs text-gray-400">图片内已自动填充占位文本</p>
-            </div>
-          )}
-          {presets.map((preset, idx) => (
+          {presets.map((preset, idx) => {
+             const isActive = activePresetId === preset.id;
+             return (
               <div 
                 key={preset.id}
                 onClick={() => {
-                  const isActive = activePresetId === preset.id;
                   if (isActive) {
                     if (onEditContent) onEditContent();
                   } else {
                     if (onLoadPreset) onLoadPreset(preset);
                   }
                 }}
-                className={`relative shrink-0 w-28 h-28 bg-white border rounded-lg shadow-sm flex flex-col overflow-hidden transition-all duration-200 ${activePresetId === preset.id ? 'border-purple-500 ring-1 ring-purple-500 shadow-md' : 'border-gray-200 hover:border-gray-300'}`}
+                className={`relative shrink-0 w-28 h-28 bg-white border rounded-lg shadow-sm flex flex-col overflow-hidden transition-all duration-200 ${isActive ? 'border-purple-500 ring-1 ring-purple-500 shadow-md' : 'border-gray-200 hover:border-gray-300'}`}
               >
                  <div className={`absolute top-0 left-0 h-full w-1 ${getPresetColor(idx)}`}></div>
                  <div className="p-2 pl-3 flex flex-col h-full overflow-hidden">
@@ -350,7 +344,8 @@ export const MobileDraftsStrip: React.FC<EditorControlsProps> = ({
                     </div>
                  </div>
               </div>
-          ))}
+             );
+          })}
        </div>
     </div>
   );
@@ -365,8 +360,10 @@ export const MobileStylePanel: React.FC<EditorControlsProps> = ({ state, onChang
        <div className="flex-1 overflow-y-auto px-4 py-3 custom-scrollbar">
           <div>
              <h4 className="text-[10px] font-bold text-gray-400 uppercase mb-2">布局模板</h4>
-             <div className="grid grid-cols-1 gap-3">
+             <div className="grid grid-cols-4 gap-3">
               {[
+                { id: 'duality', label: '假作真时' },
+                { id: 'minimal', label: '机能档案' },
                 { id: 'storybook', label: '绘本蜡笔' },
               ].map((layout) => (
                 <button
@@ -613,15 +610,6 @@ const EditorControls: React.FC<EditorControlsProps> = ({
         </div>
 
         <div className="grid grid-cols-2 gap-3 overflow-y-auto pb-4 custom-scrollbar">
-          {presets.length === 0 && (
-            <div className="col-span-2">
-              <div className="w-full border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50 p-6 flex flex-col items-center text-center gap-3 text-gray-400">
-                <BookmarkIcon className="w-8 h-8 text-gray-300" />
-                <p className="text-sm font-bold text-gray-500">暂无草稿</p>
-                <p className="text-xs text-gray-400">图片内已自动填充占位文本</p>
-              </div>
-            </div>
-          )}
           {presets.map((preset, idx) => (
               <div 
                 key={preset.id}
@@ -647,7 +635,7 @@ const EditorControls: React.FC<EditorControlsProps> = ({
                     </button>
                 </div>
               </div>
-              ))}
+          ))}
         </div>
     </div>
   );
@@ -816,9 +804,11 @@ const EditorControls: React.FC<EditorControlsProps> = ({
         <div className="space-y-4">
           <label className="text-sm font-bold text-gray-800">风格与布局</label>
           
-          <div className="grid grid-cols-1 gap-2">
+          <div className="grid grid-cols-4 gap-2">
             {[
-              { id: 'storybook', label: '绘本蜡笔' },
+              { id: 'duality', label: '假作真时' },
+                { id: 'minimal', label: '机能档案' },
+                { id: 'storybook', label: '绘本蜡笔' },
             ].map((layout) => (
               <button
                 key={layout.id}

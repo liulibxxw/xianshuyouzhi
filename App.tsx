@@ -119,6 +119,11 @@ async function getEmbedFontCSS() {
 
 const App: React.FC = () => {
   const customPresetsSnapshot = useMemo(() => loadCustomPresetsSnapshot(), []);
+  const mergedPresetsSnapshot = useMemo(() => {
+    const defaults = DEFAULT_PRESETS.map(p => ({ ...p }));
+    const custom = loadCustomPresetsSnapshot();
+    return [...defaults, ...custom];
+  }, []);
   const [state, setState] = useState<CoverState>(() => {
     try {
       const saved = localStorage.getItem('coverState_v3');
@@ -147,7 +152,7 @@ const App: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [exportImage, setExportImage] = useState<string | null>(null);
   const [exportFilename, setExportFilename] = useState<string>('cover.png');
-  const [presets, setPresets] = useState<ContentPreset[]>(customPresetsSnapshot);
+  const [presets, setPresets] = useState<ContentPreset[]>(mergedPresetsSnapshot);
   const [advancedPresets, setAdvancedPresets] = useState<AdvancedPreset[]>(() => {
     try {
       const saved = localStorage.getItem('advancedPresets_v1');
@@ -626,7 +631,7 @@ const App: React.FC = () => {
                         className="w-12 h-12 rounded-full border-4 border-white shadow-lg -translate-y-4 bg-white flex items-center justify-center relative z-50 overflow-hidden"
                         style={{ backgroundColor: '#ffffff' }}
                       >
-                        <img src="/assets/icon.png" alt="APP" className="w-40 h-40 object-contain object-center scale-[2.5] translate-x-1" />
+                        <img src="/assets/icon.png" alt="APP" className="w-40 h-40 object-contain object-center scale-[2.5] translate-x-0.5" />
                       </button>
                       <button onClick={() => toggleMobileTab('search')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'search' ? 'text-purple-600' : 'text-gray-500'}`}><MagnifyingGlassIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">搜索</span></button>
                       <button onClick={handleModeToggle} className="flex flex-col items-center gap-1 text-gray-500 transition-colors w-14"><ArrowsRightLeftIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">{state.mode === 'cover' ? '长图' : '封面'}</span></button>

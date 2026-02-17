@@ -333,6 +333,11 @@ const App: React.FC = () => {
         fontEmbedCSS: fontCss,
       };
 
+      // Storybook 风格使用特殊背景色
+      if (state.layoutStyle === 'storybook') {
+        exportOptions.backgroundColor = '#FFF8F0';
+      }
+
       if (state.mode === 'cover') {
         exportOptions.width = 400;
         exportOptions.height = 440; 
@@ -343,15 +348,21 @@ const App: React.FC = () => {
            maxHeight: 'none',
            transform: 'none',
            margin: '0',
+           overflow: 'visible',
         };
       } else {
+        // 长文模式：获取元素的完整内容高度，确保导出完整图片
+        const fullHeight = previewRef.current.scrollHeight;
         exportOptions.width = 400;
-         exportOptions.style = {
+        exportOptions.height = fullHeight;
+        exportOptions.style = {
            width: '400px',
-           height: 'auto',
+           height: `${fullHeight}px`,
            maxWidth: 'none',
+           maxHeight: 'none',
            transform: 'none',
            margin: '0',
+           overflow: 'visible',
         };
       }
 

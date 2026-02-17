@@ -111,7 +111,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   const isLongText = mode === 'long-text';
   
   // 长文模式使用 flex-none，让容器高度完全由内容决定，不拉伸填充
-  // 封面模式使用 flex-1，在固定高度容器中均分空间
+  // 当容器被缩小时，需要避免内部块拉伸。封面模式使用 flex-1，在固定高度容器中均分空间
   const flexGrowClass = isLongText ? 'flex-none' : 'flex-1';
   const minHeightClass = isLongText ? '' : 'min-h-0';
 
@@ -132,11 +132,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     const length = title.length;
     let sizeClass = 'text-4xl';
     
-    if (layoutStyle === 'split') {
-        if (length > 12) sizeClass = 'text-2xl';
-        else if (length > 8) sizeClass = 'text-3xl';
-        else sizeClass = 'text-5xl';
-    } else if (layoutStyle === 'minimal') {
+    if (layoutStyle === 'minimal') {
         if (length > 14) sizeClass = 'text-2xl';
         else if (length > 10) sizeClass = 'text-3xl';
         else sizeClass = 'text-4xl';
@@ -157,9 +153,16 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
      return getFontClass(bodyFont);
   };
   
-  const getBodyClasses = () => {
-      return `${bodyTextSize} ${bodyTextAlign} leading-[1.5] outline-none ${getBodyFontClass()}`;
-  };
+    const getBodyClasses = () => {
+        return `${bodyTextSize} ${bodyTextAlign} leading-[1.5] outline-none ${getBodyFontClass()}`;
+    };
+
+    const getStorybookBodyHeightClass = () => {
+        if (!isLongText) {
+          return 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]';
+        }
+        return isExporting ? 'h-auto overflow-visible' : 'min-h-[400px]';
+    };
 
   // 自适应副标题组件：动态缩小字号直到能在 maxWidth 内完整显示
   const AutoFitSubtitle: React.FC<{
@@ -239,18 +242,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     </>
   );
 
-  const renderVintageDecorations = () => (
-    <>
-      <div className="absolute inset-4 border border-current opacity-20 pointer-events-none" style={{ color: textColor }}></div>
-      <div className="absolute inset-[18px] border border-dotted border-current opacity-20 pointer-events-none" style={{ color: textColor }}></div>
-      <div className="absolute top-8 left-1/2 transform -translate-x-1/2 w-px h-12 bg-current opacity-30 pointer-events-none" style={{ color: textColor }}></div>
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-px h-12 bg-current opacity-30 pointer-events-none" style={{ color: textColor }}></div>
-      <div className="absolute top-4 right-6 text-[3rem] font-serif opacity-5 italic leading-none pointer-events-none" style={{ color: textColor }}>
-        Vol.01
-      </div>
-    </>
-  );
-
   const renderContent = () => {
     if (layoutStyle === 'minimal') {
       return (
@@ -316,10 +307,10 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                     <div className="text-[9px] font-mono opacity-40" style={{ color: textColor }}>REF.07</div>
                 </div>
 
-                <div 
+                 <div 
                    className={`relative pl-6 pt-1 pb-2 ${flexGrowClass} cursor-text ${minHeightClass}`}
                    onClick={handleContainerClick}
-                >
+                 >
                     <div className="absolute left-0 top-0 bottom-4 w-px bg-current opacity-20" style={{ color: textColor }}></div>
                     <div className="absolute left-0 top-0 w-1 h-8" style={{ backgroundColor: contentBarColor }}></div>
 
@@ -364,84 +355,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
       );
     }
 
-    if (layoutStyle === 'split') {
-      return (
-        <div 
-          className={`relative z-10 p-8 flex flex-col ${isLongText ? 'flex-1' : 'flex-1'}`}
-        >
-          {renderVintageDecorations()}
-
-          <div className="flex flex-col items-center text-center mt-2 mb-2 relative shrink-0 flex-none">
-             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[120%] h-full bg-white/30 blur-xl rounded-full -z-10"></div>
-             
-             <span className={`text-xs mb-1 tracking-[0.3em] uppercase opacity-70 ${getBodyFontClass()}`} style={{ color: textColor }}>
-                The Story of
-             </span>
-             <h1 className={`mb-2 leading-tight whitespace-nowrap ${getTitleFontClass()}`} style={{ color: textColor }}>
-              {title}
-            </h1>
-             <AutoFitSubtitle
-               className={`px-4 py-1 border-y border-current text-xs tracking-widest uppercase opacity-80 ${getBodyFontClass()}`}
-               style={{ color: textColor, borderColor: `${textColor}40` }}
-               maxWidth={336}
-             >
-               {subtitle}
-             </AutoFitSubtitle>
-          </div>
-
-          <div 
-            className={`relative flex flex-col justify-start pt-6 ${flexGrowClass} cursor-text`}
-            style={{ 
-               marginBottom: isLongText ? '0.25rem' : '0',
-               overflow: isLongText ? 'visible' : 'hidden'
-            }}
-            onClick={handleContainerClick}
-          >
-             <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-[4rem] opacity-20 -z-10" style={{ backgroundColor: accentColor }}></div>
-             
-             <div
-                ref={editableRef}
-                contentEditable={!isExporting}
-                onInput={(e) => handleInput(e, false)}
-                onCompositionStart={() => isComposing.current = true}
-                onCompositionEnd={() => isComposing.current = false}
-                suppressContentEditableWarning={true}
-                className={`${getBodyClasses()} px-2 w-full outline-none ${isLongText ? 'h-auto overflow-visible' : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
-                style={{ color: textColor }}
-              />
-          </div>
-
-          <div 
-            className="pt-2 border-t border-current/30 flex flex-col items-center opacity-80 shrink-0 flex-none mt-auto" 
-            style={{ 
-               color: textColor,
-            }}
-          >
-             <div className="flex items-center gap-4 mb-2">
-                <div className="text-[8px] uppercase tracking-[0.2em]">SCREENPLAY</div>
-                <div className={`text-sm italic font-serif ${getBodyFontClass()}`}>{author}</div>
-             </div>
-             <div className="w-full flex justify-between items-center text-[8px] tracking-widest opacity-60 font-mono">
-                <div className="flex items-center gap-2">
-                    {displayCategories.map((cat, idx) => (
-                        <div 
-                          key={idx} 
-                          className="px-2 py-[2px] border border-current rounded-sm relative"
-                          style={{ borderColor: textColor }}
-                        >
-                           <div className="absolute top-[-1px] right-[-1px] w-[3px] h-[3px] bg-white border-b border-l border-current opacity-100" style={{ borderColor: textColor }}></div>
-                           <span className="uppercase font-semibold">{cat}</span>
-                        </div>
-                    ))}
-                </div>
-                
-                <div className="h-px w-8 bg-current opacity-20 mx-2"></div>
-                <span>NO. {Date.now().toString().slice(-4)}</span>
-             </div>
-          </div>
-        </div>
-      );
-    }
 
     if (layoutStyle === 'duality') {
       return (
@@ -548,7 +461,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                 </div>
                 {/* Right: reading stats — auto-width centered text */}
                 <div className="shrink-0 select-none relative" style={{ transform: 'rotate(2.5deg)', marginRight: '-2px' }}>
-                  <div className="relative px-2 py-1" style={{
+                  <div className="relative px-2.5 py-1.5 font-pingfang" style={{
                     backgroundColor: '#FFF5E6',
                     border: `1.5px solid ${earthyColors.brown}40`,
                     borderRadius: '2px 6px 4px 2px',
@@ -559,11 +472,11 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                       backgroundSize: '3px 3px',
                     }} />
                     <div className="relative flex items-center justify-center gap-1">
-                      <span className="text-[9px] font-bold leading-none font-caveat" style={{ color: earthyColors.brickRed }}>{readingStats.length}</span>
-                      <span className="text-[7px] opacity-40 leading-none" style={{ color: earthyColors.brown }}>字</span>
-                      <span className="text-[8px] opacity-25 leading-none mx-0.5" style={{ color: earthyColors.brown }}>·</span>
-                      <span className="text-[9px] font-bold leading-none font-caveat" style={{ color: earthyColors.forestGreen }}>{readingStats.minutes}</span>
-                      <span className="text-[7px] opacity-40 leading-none" style={{ color: earthyColors.brown }}>min</span>
+                      <span className="font-bold leading-none" style={{ color: earthyColors.brickRed, fontSize: '14px' }}>{readingStats.length}</span>
+                      <span className="opacity-40 leading-none" style={{ color: earthyColors.brown, fontSize: '12px' }}>字</span>
+                      <span className="opacity-25 leading-none mx-0.5" style={{ color: earthyColors.brown, fontSize: '12px' }}>·</span>
+                      <span className="font-bold leading-none" style={{ color: earthyColors.forestGreen, fontSize: '14px' }}>{readingStats.minutes}</span>
+                      <span className="opacity-40 leading-none" style={{ color: earthyColors.brown, fontSize: '12px' }}>min</span>
                     </div>
                     <svg width="100%" height="3" viewBox="0 0 80 3" preserveAspectRatio="none" className="mt-0.5 opacity-20">
                       <path d="M0 1.5 Q8 0.5 16 1.8 Q24 2.8 32 1.2 Q40 0.2 48 1.6 Q56 2.6 64 1 Q72 0.4 80 1.5" stroke={earthyColors.mustardYellow} strokeWidth="2" fill="none" strokeLinecap="round" />
@@ -586,16 +499,22 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                   }}
                 >
                   {/* Title text with inline star tucked behind last character */}
-                  <span className="relative z-10">{title}</span>
-                  <span className="gold-star select-none pointer-events-none relative z-0" style={{
-                    fontSize: '0.65em',
-                    display: 'inline-block',
-                    verticalAlign: 'baseline',
-                    marginLeft: '-0.6em',
-                    marginBottom: '-0.15em',
-                    transform: 'rotate(12deg) translateY(0.1em)',
-                  }}>
-                    <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><path d="M313.991837 914.285714c-20.37551 0-40.228571-6.269388-56.946939-18.808163-30.302041-21.942857-44.930612-58.514286-38.661225-95.085714l24.032654-141.061225c3.134694-18.285714-3.134694-36.571429-16.195919-49.110204L123.297959 509.910204c-26.644898-26.122449-36.04898-64.261224-24.555102-99.787755 11.493878-35.526531 41.795918-61.126531 78.889796-66.35102l141.583674-20.375511c18.285714-2.612245 33.959184-14.106122 41.795918-30.30204l63.216326-128.522449C440.946939 130.612245 474.383673 109.714286 512 109.714286s71.053061 20.897959 87.24898 54.334694L662.987755 292.571429c8.359184 16.195918 24.032653 27.689796 41.795918 30.30204l141.583674 20.375511c37.093878 5.22449 67.395918 30.82449 78.889796 66.35102 11.493878 35.526531 2.089796 73.665306-24.555102 99.787755l-102.4 99.787755c-13.061224 12.538776-19.330612 31.346939-16.195919 49.110204l24.032654 141.061225c6.269388 37.093878-8.359184 73.142857-38.661225 95.085714-30.302041 21.942857-69.485714 24.555102-102.4 7.314286L538.122449 836.440816c-16.195918-8.359184-35.526531-8.359184-51.722449 0l-126.955102 66.87347c-14.628571 7.314286-30.302041 10.971429-45.453061 10.971428z m162.481632-96.653061z" fill="#F2CB51"/></svg>
+                  <span className="relative z-10">{title.length > 1 ? title.slice(0, -1) : ''}</span>
+                  <span className="relative inline-block">
+                    <span className="relative z-10">{title.slice(-1)}</span>
+                    <span className="select-none pointer-events-none absolute" style={{
+                      width: '0.8em',
+                      height: '0.8em',
+                      right: '-0.3em',
+                      bottom: '0.05em',
+                      transform: 'rotate(12deg)',
+                      zIndex: 0,
+                      filter: 'drop-shadow(0 1px 2px rgba(242,203,81,0.5)) drop-shadow(0 0 6px rgba(242,203,81,0.35))',
+                    }}>
+                    <svg t="1771204079743" className="icon" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+                      <path d="M313.991837 914.285714c-20.37551 0-40.228571-6.269388-56.946939-18.808163-30.302041-21.942857-44.930612-58.514286-38.661225-95.085714l24.032654-141.061225c3.134694-18.285714-3.134694-36.571429-16.195919-49.110204L123.297959 509.910204c-26.644898-26.122449-36.04898-64.261224-24.555102-99.787755 11.493878-35.526531 41.795918-61.126531 78.889796-66.35102l141.583674-20.375511c18.285714-2.612245 33.959184-14.106122 41.795918-30.30204l63.216326-128.522449C440.946939 130.612245 474.383673 109.714286 512 109.714286s71.053061 20.897959 87.24898 54.334694L662.987755 292.571429c8.359184 16.195918 24.032653 27.689796 41.795918 30.30204l141.583674 20.375511c37.093878 5.22449 67.395918 30.82449 78.889796 66.35102 11.493878 35.526531 2.089796 73.665306-24.555102 99.787755l-102.4 99.787755c-13.061224 12.538776-19.330612 31.346939-16.195919 49.110204l24.032654 141.061225c6.269388 37.093878-8.359184 73.142857-38.661225 95.085714-30.302041 21.942857-69.485714 24.555102-102.4 7.314286L538.122449 836.440816c-16.195918-8.359184-35.526531-8.359184-51.722449 0l-126.955102 66.87347c-14.628571 7.314286-30.302041 10.971429-45.453061 10.971428z m162.481632-96.653061z" fill="#F2CB51" />
+                    </svg>
+                    </span>
                   </span>
                 </h1>
                 {/* Crayon stroke underline */}
@@ -658,7 +577,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                 onCompositionStart={() => isComposing.current = true}
                 onCompositionEnd={() => isComposing.current = false}
                 suppressContentEditableWarning={true}
-                className={`${getBodyClasses()} w-full pl-4 pr-1 py-1 block outline-none opacity-90 transform-none ${isLongText ? (isExporting ? 'h-auto' : 'min-h-[400px]') : 'h-full overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]'}`}
+                className={`${getBodyClasses()} w-full pl-4 pr-1 py-1 block outline-none opacity-90 transform-none ${getStorybookBodyHeightClass()}`}
                 style={{ 
                   color: earthyColors.brown,
                   lineHeight: '28px',
@@ -669,7 +588,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
             {/* Footer — author as cute "Written by" */}
             <div className="mx-4 mb-4 mt-auto pt-3 shrink-0 flex-none flex justify-between items-end relative z-10" style={{ marginTop: isLongText ? 'auto' : '0' }}>
               {/* Left: Author with cat paw avatar */}
-                <div className="flex items-center gap-2" style={{ paddingBottom: '2px' }}>
+              <div className="flex items-center gap-2" style={{ paddingBottom: '2px' }}>
                 {/* Mini cat paw avatar circle */}
                 <div 
                   className="w-8 h-8 rounded-full flex items-center justify-center select-none"
@@ -683,9 +602,10 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                     <path d="M578.358 232.332l0.665 1.664 0.665-1.065c40.429-58.962 98.825-76.298 171.095-49.313l2.696 1c60.558 23.424 92.169 70.772 97.992 130.466 1.963 20.065 0.665 41.393-2.829 60.693l-0.864 4.59 1.663-0.332a95.663 95.663 0 0 1 38.864-0.2l2.662 0.6c40.728 9.317 75.666 49.578 87.844 98.49 13.509 54.138-2.297 109.472-48.348 149.068-61.258 54.836-94.631 136.657-99.755 246.56a19.498 19.498 0 0 1-20.43 18.568 19.498 19.498 0 0 1-18.634-20.33C797.2 753.137 834.6 661.5 904.576 598.777c34.872-29.946 46.317-70.14 36.269-110.47-8.885-35.702-33.607-64.252-58.663-69.975-14.906-3.46-29.713-0.565-43.654 6.656a80.889 80.889 0 0 0-9.584 5.823l-1.664 1.23-2.163 1.664-0.399 0.266-0.233 0.233-0.366 0.233-1.564 0.665-4.658 1.897-1.065 0.2-1.297 0.166-1.598 0.1-3.193-0.166-5.857-1.83-6.389-4.991-3.726-6.921-0.8-5.723 0.234-2.996 0.333-1.463 0.166-0.666 1.864-4.292 0.5-0.998 0.265-0.4 0.4-0.532 0.166-0.166 0.2-0.333c9.482-14.974 17.734-53.572 14.44-87.145-4.492-45.918-27.384-80.224-73.203-97.958-69.11-26.686-115.793-4.226-147.736 72.404-7.42 17.735-33.44 15.206-37.267-3.627-18.967-93.8-66.416-130.667-147.937-117.324-89.573 16.97-119.453 69.21-93.932 166.703 4.724 18.001-16.238 31.677-30.979 20.197-42.457-33.074-87.244-35.204-138.42-5.923l-1.63 0.932-1.464 1.13c-47.814 36.603-58.33 73.004-41.725 118.556l0.798 2.197 1.331 3.393 0.699 1.697 1.431 3.394 0.764 1.665 1.532 3.426 1.63 3.394 1.73 3.461 1.797 3.46 1.93 3.56 1.996 3.594 2.163 3.66 2.263 3.76 2.395 3.86 2.53 3.96 2.661 4.06 2.795 4.225 2.962 4.325 3.128 4.526 3.26 4.658 3.46 4.825 5.491 7.62 7.986 10.846 13.941 18.633c11.148 14.907 20.33 33.607 27.618 56.067l1.73 5.49c4.492 14.774 8.186 31.145 11.114 49.08l1.098 6.787 0.998 6.988 0.466 3.493 0.864 7.188 0.833 7.32 0.732 7.454 0.332 3.793 0.666 7.686 0.566 7.852c0.2 2.63 0.332 5.292 0.499 7.987l0.433 8.118 0.366 8.319 0.333 8.419 0.2 8.551 0.065 4.358 0.133 8.818 0.034 8.951v4.525l-0.034 9.184-0.066 4.658-0.133 9.383-0.133 4.759-0.233 9.65-0.333 9.749a19.498 19.498 0 0 1-20.264 18.733 19.498 19.498 0 0 1-18.833-20.131l0.333-9.417 0.133-4.658 0.2-9.183 0.166-9.051 0.067-8.851V810.9l-0.133-8.418-0.167-8.252-0.233-8.12-0.166-3.992-0.333-7.853-0.4-7.72a793.353 793.353 0 0 0-0.233-3.826l-0.498-7.453-0.532-7.32-0.666-7.188-0.665-6.988a606.252 606.252 0 0 0-0.333-3.494l-0.8-6.754-0.864-6.655-0.433-3.227-0.931-6.389c-6.655-43.123-17.636-75.299-32.81-96.328l-13.207-17.702-6.588-8.917-6.156-8.419-3.86-5.323-5.457-7.72-3.394-4.892-3.26-4.758-3.095-4.658-2.961-4.459-2.795-4.359-2.663-4.259-2.495-4.192-1.231-2.03-2.33-4.06-1.13-1.996-2.164-3.993-1.065-1.963-1.996-3.894-1.93-3.892-1.83-3.893-1.763-3.86a241.902 241.902 0 0 1-0.832-1.963l-1.664-3.893a248.092 248.092 0 0 1-0.764-1.963l-1.565-3.993c-24.124-63.388-8.252-119.121 56.333-167.368a19.565 19.565 0 0 1 1.763-1.165c50.244-29.614 98.89-35.304 144.143-16.804l1.565 0.666v-0.333c-10.317-92.035 33.804-150.83 129.9-170.195l3.36-0.666c87.244-14.308 148.036 19.798 178.815 98.292z m-37.367 239.24c47.082 7.852 82.852 31.943 112.266 63.82 43.19 46.85 65.384 99.888 65.218 158.75-0.067 20.43-4.725 39.796-17.969 56.565-19.431 24.69-48.347 33.375-82.086 32.044-29.382-1.198-56-9.417-76.698-29.947-5.622-5.557-12.544-10.215-19.297-14.807a53.072 53.072 0 0 0-46.751-7.52c-8.485 2.496-17.303 4.859-24.889 8.718-25.488 12.91-52.773 11.978-80.257 4.326-36.734-10.315-63.686-30.446-70.541-64.651-2.895-14.376-2.895-30.314 1.265-44.088 24.123-79.726 80.09-134.66 171.261-160.282a149.2 149.2 0 0 1 68.478-2.928z m262.499 6.588a63.553 63.553 0 1 1 63.52 110.038 63.553 63.553 0 0 1-63.554-110.038z m-582.296-93.2a84.682 84.682 0 1 1 0 169.365 84.682 84.682 0 0 1 0-169.365z m385.28-68.545a84.682 84.682 0 1 1 161.114 52.374 84.682 84.682 0 0 1-161.114-52.34z m-254.08-42.325a84.682 84.682 0 1 1 161.079 52.34 84.682 84.682 0 0 1-161.08-52.34z" fill="${earthyColors.forestGreen}" />
                   </svg>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-[14px] lowercase tracking-wide opacity-70 font-pingfang" style={{ marginBottom: '-8px' }}>written by</span>
-                  <span className="text-[16px] font-bold font-serif-sc" style={{ 
+                <div className="flex flex-col" style={{ gap: '0px', lineHeight: 1.2 }}>
+                  <span className="lowercase tracking-wide opacity-70 font-pingfang" style={{ fontSize: '13px', marginBottom: '-2px' }}>written by</span>
+                  <span className="text-sm font-bold" style={{ 
+                    fontFamily: '"Noto Serif SC", serif',
                     color: earthyColors.brown,
                   }}>{author}</span>
                 </div>
@@ -707,11 +627,11 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
                       backgroundColor: earthyColors.cream,
                     }} />
                     {/* Date text */}
-                    <span className="text-[20px] font-black leading-none font-pingfang inline-block" style={{ 
+                    <span className="text-[20px] font-black leading-none inline-flex items-center justify-center font-pingfang" style={{ 
                       color: earthyColors.brown,
-                      transform: 'translate(3px, 1px)',
+                      transform: 'translate(4px, 2px)'
                     }}>
-                      {String(new Date().getMonth() + 1)}/{String(new Date().getDate())}
+                      {String(new Date().getMonth() + 1).padStart(2, '0')}<span className="font-pingfang" style={{ margin: '0 2px' }}>/</span>{String(new Date().getDate()).padStart(2, '0')}
                     </span>
                   </div>
                   {/* String loop from hole */}
@@ -827,10 +747,8 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   }, [isLongText]);
 
   // 长文模式下，如果传入了 longTextMinHeight，作为容器最小高度
-  // 但导出时需要移除最小高度，避免额外空白一同输出
-  const containerMinHeight = (!isExporting && isLongText && longTextMinHeight > 0)
-    ? longTextMinHeight
-    : undefined;
+  // 这样底部装饰块会贴在可视区域底部
+  const containerMinHeight = isLongText && !isExporting && longTextMinHeight > 0 ? longTextMinHeight : undefined;
 
   return (
     <div 
@@ -840,7 +758,6 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
         ...renderingIsolation,
         minHeight: containerMinHeight ? `${containerMinHeight}px` : undefined,
       }}
-      data-long-text-scroll={isLongText ? true : undefined}
     >
       {layoutStyle !== 'storybook' && (
         <div 

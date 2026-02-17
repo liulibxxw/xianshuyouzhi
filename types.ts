@@ -13,7 +13,7 @@ export interface CoverState {
   backgroundColor: string;
   accentColor: string;
   textColor: string;
-  layoutStyle: 'split' | 'minimal' | 'duality';
+  layoutStyle: 'minimal' | 'duality' | 'storybook';
   mode: 'cover' | 'long-text';
   bodyTextSize: string;
   bodyTextAlign: string;
