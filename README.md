@@ -21,13 +21,16 @@
 更适配画加橱窗，但可输入的文本较少。
 橱窗商品卡片大小的设置为：固定比例。
 <div align="center">
-	<img src="https://postimg.cc/dhqtH55k" alt="橱窗封面效果图" />
+	<img src="./assets/show.png" alt="橱窗封面效果图" />
 	<p>效果图展示</p>
 </div>
 
 ## 小红书封面
 更适合小红书封面，输入的文本较多。
-~~效果图展示~骗你的||没图||
+~~效果图展示~~ 骗你的。
+
+> GitHub Markdown 不支持 `||剧透||` 语法。
+> 可用 `<details><summary>...</summary>...</details>` 实现折叠效果。
 
 ## 长文
 可以用于排版长文本。自测5k左右一切正常。
