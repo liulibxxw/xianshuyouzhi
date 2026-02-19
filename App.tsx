@@ -26,6 +26,9 @@ import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import navIcon from './assets/icon.png';
+import localResultCss from './result.css?raw';
+import localPingfangCss from './pingfang-font.css?raw';
+import localZeoCss from './zeo.css?raw';
 
 const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;700;900&display=swap";
 const ZEOSEVEN_FONT_URL = "https://fontsapi.zeoseven.com/508/main/result.css";
@@ -60,24 +63,57 @@ const blobToDataURL = (blob: Blob) => {
   });
 };
 
+const normalizeCssUrls = (cssText: string, baseUrl: string) => {
+  return cssText.replace(/url\(([^)]+)\)/g, (match, rawUrl) => {
+    const cleaned = String(rawUrl).trim().replace(/^['"]|['"]$/g, '');
+    if (!cleaned) return match;
+    if (/^(data:|https?:|blob:|#|\/)/i.test(cleaned)) {
+      return `url("${cleaned}")`;
+    }
+
+    try {
+      const absolute = new URL(cleaned, baseUrl).toString();
+      return `url("${absolute}")`;
+    } catch {
+      return `url("${cleaned}")`;
+    }
+  });
+};
+
 async function getEmbedFontCSS() {
     try {
     const [googleRes, zeoRes] = await Promise.all([
-            fetch(GOOGLE_FONTS_URL),
+            fetch(GOOGLE_FONTS_URL).catch(() => null),
       fetch(ZEOSEVEN_FONT_URL).catch(() => null),
         ]);
-        let css = await googleRes.text();
-        if (zeoRes) {
-            let zeoCss = await zeoRes.text();
-            // 将 zeoseven CSS 中的相对路径转为绝对路径
-            const zeoBase = ZEOSEVEN_FONT_URL.replace(/\/[^/]*$/, '/');
-            zeoCss = zeoCss.replace(/url\(["']?\.\//g, `url("${zeoBase}`).replace(/\.woff2["']?\)/g, '.woff2")');
-            css += '\n' + zeoCss;
+
+        const cssChunks: string[] = [];
+
+        if (googleRes) {
+          cssChunks.push(await googleRes.text());
         }
+
+        if (zeoRes) {
+          let zeoCss = await zeoRes.text();
+          // 将 zeoseven CSS 中的相对路径转为绝对路径
+          const zeoBase = ZEOSEVEN_FONT_URL.replace(/\/[^/]*$/, '/');
+          zeoCss = zeoCss.replace(/url\(["']?\.\//g, `url("${zeoBase}`).replace(/\.woff2["']?\)/g, '.woff2")');
+          cssChunks.push(zeoCss);
+        }
+
+        const localBase = typeof window !== 'undefined' ? window.location.href : 'http://localhost/';
+        cssChunks.push(normalizeCssUrls(localResultCss, localBase));
+        cssChunks.push(normalizeCssUrls(localPingfangCss, localBase));
+        cssChunks.push(normalizeCssUrls(localZeoCss, localBase));
+
+        let css = cssChunks.filter(Boolean).join('\n');
         
         const urls: string[] = [];
         css.replace(/url\(([^)]+)\)/g, (match, url) => {
-            urls.push(url.replace(/['"]/g, '').trim());
+            const parsed = url.replace(/['"]/g, '').trim();
+            if (!parsed.startsWith('data:')) {
+              urls.push(parsed);
+            }
             return match;
         });
 
@@ -624,14 +660,20 @@ const App: React.FC = () => {
            overflow: 'visible',
         };
       } else if (state.mode === 'xhs-cover') {
+        const sourceWidth = el.offsetWidth || 400;
+        const sourceHeight = el.offsetHeight || 534;
+        const scaleX = 1242 / sourceWidth;
+        const scaleY = 1660 / sourceHeight;
+
         exportOptions.width = 1242;
         exportOptions.height = 1660;
         exportOptions.style = {
-          width: '1242px',
-          height: '1660px',
+          width: `${sourceWidth}px`,
+          height: `${sourceHeight}px`,
           maxWidth: 'none',
           maxHeight: 'none',
-          transform: 'none',
+          transform: `scale(${scaleX}, ${scaleY})`,
+          transformOrigin: 'top left',
           margin: '0',
           overflow: 'visible',
         };
