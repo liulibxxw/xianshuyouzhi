@@ -39,19 +39,8 @@
 * 字号修改（请暂时不要单独调整某部分文字的字号，会出现显示Bug，此人没修好）
 
 # 多种使用方式
-* 对于iOS、鸿蒙或其他可能无法使用APP的用户，可通过 Web 版使用。
+* 对于iOS、鸿蒙或其他可能无法使用APP的用户，可通过[网页版](https://xianshuyouzhi.pages.dev/)使用。
 * 对于想尝试APP的用户，请将项目 fork 到自己的 GitHub 账户，并在 more-action 中自行下载 APK 文件。
-
-## Cloudflare Pages 部署
-如果你在 Cloudflare 的日志里看到：`For Pages, please run wrangler pages deploy instead.`，说明用了 Workers 命令（`wrangler deploy`）。
-
-请改为 Pages 命令：
-- 构建命令：`npm run build`（输出目录 `dist`）
-- 部署命令：`npm run deploy:pages`
-
-项目已内置：
-- `npm run build:pages`
-- `npm run deploy:pages`
 
 # 请我喝杯奶茶
 [请我喝杯奶茶](https://afdian.com/a/liulibxxw)
