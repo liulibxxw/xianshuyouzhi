@@ -40,7 +40,7 @@
 
 # 多种使用方式
 * 对于iOS、鸿蒙或其他可能无法使用APP的用户，可通过[网页版](https://xianshuyouzhi.pages.dev/)使用。
-* 对于想尝试APP的用户，请将项目 fork 到自己的 GitHub 账户，并在 more-action 中自行下载 APK 文件。
+* 对于想尝试APP的用户，请将more-action 中自行下载 APK 文件。
 
 # 请我喝杯奶茶
 [请我喝杯奶茶](https://afdian.com/a/liulibxxw)
