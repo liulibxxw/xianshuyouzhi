@@ -9,7 +9,7 @@
     "build:pages": "vite build",
     "preview": "vite preview",
     "cap:sync": "npx cap sync",
-    "deploy:pages": "wrangler pages deploy dist"
+    "deploy:pages": "npx wrangler pages deploy dist"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",
