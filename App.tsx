@@ -15,7 +15,7 @@ import {
   INITIAL_CATEGORY
 } from './constants';
 import CoverPreview from './components/CoverPreview';
-import EditorControls, { MobileDraftsStrip, MobileStylePanel, ContentEditorModal, MobileExportPanel, MobileSearchPanel } from './components/EditorControls';
+import EditorControls, { MobileDraftsStrip, MobileStylePanel, MobileModePanel, ContentEditorModal, MobileExportPanel, MobileSearchPanel } from './components/EditorControls';
 import { MobilePresetPanel } from './components/PresetPanel';
 import ExportModal from './components/ExportModal';
 import RichTextToolbar from './components/RichTextToolbar';
@@ -119,21 +119,21 @@ const App: React.FC = () => {
       const saved = localStorage.getItem('coverState_v3');
       if (saved) {
         const parsed = JSON.parse(saved);
-        const savedLayout = parsed.layoutStyle === 'storybook' ? 'storybook' : 'minimal';
+        const savedLayout: CoverState['layoutStyle'] = 'storybook';
         return {
            ...parsed,
            backgroundColor: parsed.backgroundColor || INITIAL_BG_COLOR,
            accentColor: parsed.accentColor || INITIAL_ACCENT_COLOR,
            textColor: parsed.textColor || INITIAL_TEXT_COLOR,
            layoutStyle: savedLayout,
-           mode: parsed.mode || 'long-text'
+           mode: parsed.mode === 'cover' || parsed.mode === 'long-text' || parsed.mode === 'xhs-cover' ? parsed.mode : 'long-text'
         };
       }
     } catch (e) { console.error("Failed to load state", e); }
     return {
       title: INITIAL_TITLE, subtitle: INITIAL_SUBTITLE, bodyText: INITIAL_BODY_TEXT, secondaryBodyText: "",
       category: INITIAL_CATEGORY, author: INITIAL_AUTHOR, backgroundColor: INITIAL_BG_COLOR, accentColor: INITIAL_ACCENT_COLOR, textColor: INITIAL_TEXT_COLOR,
-      layoutStyle: 'minimal', mode: 'long-text', bodyTextSize: 'text-[13px]', bodyTextAlign: 'text-justify', isBodyBold: false, isBodyItalic: false,
+      layoutStyle: 'storybook', mode: 'long-text', bodyTextSize: 'text-[13px]', bodyTextAlign: 'text-justify', isBodyBold: false, isBodyItalic: false,
     };
   });
 
@@ -493,10 +493,10 @@ const App: React.FC = () => {
     setShowBgColorPalette(prev => !prev);
   };
 
-  const handleModeToggle = () => {
-    setActiveTab(undefined);
+  const openModeTab = () => {
     setShowBgColorPalette(false);
-    handleStateChange({ mode: state.mode === 'cover' ? 'long-text' : 'cover' });
+    if (activeTab === 'mode') setActiveTab(undefined);
+    else setActiveTab('mode');
   };
 
   const handleCreateNew = () => {
@@ -623,6 +623,18 @@ const App: React.FC = () => {
            margin: '0',
            overflow: 'visible',
         };
+      } else if (state.mode === 'xhs-cover') {
+        exportOptions.width = 1242;
+        exportOptions.height = 1660;
+        exportOptions.style = {
+          width: '1242px',
+          height: '1660px',
+          maxWidth: 'none',
+          maxHeight: 'none',
+          transform: 'none',
+          margin: '0',
+          overflow: 'visible',
+        };
       } else {
         // 长文模式：测量自然高度（排除 UI 最小高度与容器遗留样式）
         const prevMinHeight = el.style.minHeight;
@@ -720,8 +732,8 @@ const App: React.FC = () => {
         <div className="flex-1 relative overflow-hidden bg-gray-100/50 flex flex-col">
             <div ref={previewContainerRef} className="flex-1 relative overflow-hidden">
                <div ref={previewScrollRef} className="absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-y-none flex flex-col items-center custom-scrollbar" style={{ overscrollBehaviorY: 'none' }}>
-                  <div className={`flex justify-center w-full ${state.mode === 'cover' ? 'flex-1 items-center p-4 lg:p-8 min-h-full' : 'items-start pt-0 px-4 lg:pt-0'}`}>
-                    <div className="transition-transform duration-300 relative flex justify-center" style={{ transform: `scale(${previewScale})`, transformOrigin: state.mode === 'cover' ? 'center center' : 'top center', width: '400px', marginBottom: state.mode === 'long-text' && scaleMarginBottom > 0 ? `-${scaleMarginBottom}px` : undefined }}>
+                  <div className={`flex justify-center w-full ${state.mode !== 'long-text' ? 'flex-1 items-center p-4 lg:p-8 min-h-full' : 'items-start pt-0 px-4 lg:pt-0'}`}>
+                    <div className="transition-transform duration-300 relative flex justify-center" style={{ transform: `scale(${previewScale})`, transformOrigin: state.mode !== 'long-text' ? 'center center' : 'top center', width: '400px', marginBottom: state.mode === 'long-text' && scaleMarginBottom > 0 ? `-${scaleMarginBottom}px` : undefined }}>
                       <CoverPreview ref={previewRef} state={previewStateForDisplay} onBodyTextChange={val => handleStateChange({ bodyText: val })} isExporting={isExporting} longTextMinHeight={previewMinHeight} />
                     </div>
                   </div>
@@ -736,6 +748,7 @@ const App: React.FC = () => {
                 <div className="relative w-full bg-gray-50/50 border-t border-gray-100/50">
                     {activeTab === 'drafts' && <MobileDraftsStrip presets={presets} onLoadPreset={handleLoadPreset} onDeletePreset={handleDeletePreset} onSavePreset={handleSavePreset} state={previewStateForDisplay} onEditContent={() => setShowContentModal(true)} activePresetId={activePresetId} onCreateNew={handleCreateNew} onChange={handleStateChange} onExport={handleExport} />}
                     {activeTab === 'style' && <MobileStylePanel state={previewStateForDisplay} onChange={handleStateChange} onExport={handleExport} />}
+                    {activeTab === 'mode' && <MobileModePanel state={previewStateForDisplay} onChange={handleStateChange} onExport={handleExport} />}
                     {activeTab === 'export' && <MobileExportPanel state={previewStateForDisplay} onChange={handleStateChange} onExport={handleExport} isExporting={isExporting} />}
                     {activeTab === 'presets' && <MobilePresetPanel state={previewStateForDisplay} presets={advancedPresets} onSavePreset={handleSaveAdvancedPreset} onDeletePreset={id => setAdvancedPresets(p => p.filter(x => x.id !== id))} onApplyPreset={handleApplyAdvancedPreset} onFormatText={handleFormatText} />}
                     {activeTab === 'search' && <MobileSearchPanel state={previewStateForDisplay} onChange={handleStateChange} onExport={handleExport} />}
@@ -752,7 +765,7 @@ const App: React.FC = () => {
                         <img src={navIcon} alt="APP" className="w-40 h-40 object-contain object-center scale-[2.5] translate-x-0.5" />
                       </button>
                       <button onClick={() => toggleMobileTab('search')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'search' ? 'text-purple-600' : 'text-gray-500'}`}><MagnifyingGlassIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">搜索</span></button>
-                      <button onClick={handleModeToggle} className="flex flex-col items-center gap-1 text-gray-500 transition-colors w-14"><ArrowsRightLeftIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">{state.mode === 'cover' ? '长图' : '封面'}</span></button>
+                      <button onClick={openModeTab} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'mode' ? 'text-purple-600' : 'text-gray-500'}`}><ArrowsRightLeftIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">模式</span></button>
                       <button onClick={() => toggleMobileTab('export')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'export' ? 'text-purple-600' : 'text-gray-500'}`}><ArrowDownTrayIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">导出</span></button>
                 </div>
             </div>

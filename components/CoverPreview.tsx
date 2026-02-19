@@ -164,6 +164,7 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
   };
 
   const isLongText = mode === 'long-text';
+  const isXhsCover = mode === 'xhs-cover';
   
   // 长文模式使用 flex-none，让容器高度完全由内容决定，不拉伸填充
   // 当容器被缩小时，需要避免内部块拉伸。封面模式使用 flex-1，在固定高度容器中均分空间
@@ -906,11 +907,12 @@ const CoverPreview = forwardRef<HTMLDivElement, CoverPreviewProps>(({ state, onB
     );
   };
 
-  // 容器高度：封面模式固定440px（导出scale:4 → 1760px PNG），长文模式完全由内容撑开
+    // 容器高度：画加橱窗固定 440px，小红书封面按 1242:1660 比例预览，长文模式完全由内容撑开
   const containerHeightClass = useMemo(() => {
-      if (!isLongText) return 'h-[440px]';
-      return 'h-auto';
-  }, [isLongText]);
+      if (isLongText) return 'h-auto';
+      if (isXhsCover) return 'h-[534px]';
+      return 'h-[440px]';
+    }, [isLongText, isXhsCover]);
 
   // 长文模式下，如果传入了 longTextMinHeight，作为容器最小高度
   // 这样底部装饰块会贴在可视区域底部

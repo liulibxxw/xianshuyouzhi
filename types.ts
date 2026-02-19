@@ -11,7 +11,7 @@ export interface CoverState {
   accentColor: string;
   textColor: string;
   layoutStyle: 'minimal' | 'storybook';
-  mode: 'cover' | 'long-text';
+  mode: 'cover' | 'long-text' | 'xhs-cover';
   bodyTextSize: string;
   bodyTextAlign: string;
   isBodyBold: boolean;
@@ -60,4 +60,5 @@ export interface AdvancedPreset {
 }
 
 export type LayoutStyle = CoverState['layoutStyle'];
-export type EditorTab = 'style' | 'drafts' | 'content' | 'export' | 'presets' | 'search';
+export type CoverMode = CoverState['mode'];
+export type EditorTab = 'style' | 'drafts' | 'content' | 'export' | 'presets' | 'search' | 'mode';

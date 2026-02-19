@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { CoverState, LayoutStyle, ContentPreset, EditorTab, AdvancedPreset, TransformationRule } from '../types';
+import { CoverState, LayoutStyle, ContentPreset, EditorTab, AdvancedPreset, TransformationRule, CoverMode } from '../types';
 import { PALETTE, TEXT_PALETTE } from '../constants';
 import { 
     BookmarkIcon, 
@@ -236,6 +236,17 @@ interface EditorControlsProps {
   onFormatText?: (rules: TransformationRule[]) => void;
 }
 
+const MODE_OPTIONS: { id: CoverMode; label: string; desc: string }[] = [
+  { id: 'cover', label: '画加橱窗', desc: '400 × 440' },
+  { id: 'long-text', label: '长文', desc: '400 × 自适应高度' },
+  { id: 'xhs-cover', label: '小红书封面', desc: '1242 × 1660' },
+];
+
+const getModeLabel = (mode: CoverMode): string => {
+  const matched = MODE_OPTIONS.find(item => item.id === mode);
+  return matched?.label ?? '模式';
+};
+
 export const MobileDraftsStrip: React.FC<EditorControlsProps> = ({
   presets = [],
   onLoadPreset,
@@ -380,10 +391,34 @@ export const MobileStylePanel: React.FC<EditorControlsProps> = ({ state, onChang
   );
 };
 
+export const MobileModePanel: React.FC<EditorControlsProps> = ({ state, onChange }) => {
+  return (
+    <div className="w-full h-44 bg-white/90 backdrop-blur-md border-t border-gray-200/80 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] flex flex-col pointer-events-auto">
+      <div className="px-4 py-2 flex items-center border-b border-gray-100 shrink-0 h-10">
+        <span className="text-xs font-bold text-gray-500">模式</span>
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 py-3 custom-scrollbar">
+        <div className="grid grid-cols-3 gap-2">
+          {MODE_OPTIONS.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => onChange({ mode: item.id })}
+              className={`h-20 rounded-lg border px-2 flex flex-col items-center justify-center transition-all active:scale-95 ${state.mode === item.id ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-sm' : 'border-gray-200 bg-white text-gray-500'}`}
+            >
+              <span className="text-xs font-bold leading-tight text-center">{item.label}</span>
+              <span className="text-[10px] opacity-80 mt-1 text-center">{item.desc}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const MobileExportPanel: React.FC<EditorControlsProps> = ({ state, onExport, isExporting }) => {
   const [characterName, setCharacterName] = useState('');
   
-  const prefix = state.mode === 'cover' ? '封面' : '长文';
+  const prefix = getModeLabel(state.mode as CoverMode);
   const title = (state.title || '无标题').replace(/[\\/:*?"<>|]/g, '');
   const safeCharName = characterName.trim().replace(/[\\/:*?"<>|]/g, '');
   const filename = `${prefix}-${title}${safeCharName ? `-${safeCharName}` : ''}`;
@@ -765,7 +800,7 @@ const EditorControls: React.FC<EditorControlsProps> = ({
   );
 
   const renderStyleTab = () => {
-    const prefix = state.mode === 'cover' ? '封面' : '长文';
+    const prefix = getModeLabel(state.mode as CoverMode);
     const title = (state.title || '无标题').replace(/[\\/:*?"<>|]/g, '');
     const safeCharName = characterName.trim().replace(/[\\/:*?"<>|]/g, '');
     const filename = `${prefix}-${title}${safeCharName ? `-${safeCharName}` : ''}`;
@@ -774,7 +809,7 @@ const EditorControls: React.FC<EditorControlsProps> = ({
       <div className="space-y-6">
         <div className="space-y-4">
           <label className="text-sm font-bold text-gray-800">风格与布局</label>
-          
+
           <div className="grid grid-cols-4 gap-2">
             {[
                 { id: 'storybook', label: '绘本蜡笔' },
@@ -823,12 +858,31 @@ const EditorControls: React.FC<EditorControlsProps> = ({
     );
   };
 
+  const renderModeTab = () => (
+    <div className="space-y-4">
+      <label className="text-sm font-bold text-gray-800">模式</label>
+      <div className="grid grid-cols-3 gap-2">
+        {MODE_OPTIONS.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => onChange({ mode: item.id })}
+            className={`py-3 px-2 rounded-xl border text-[10px] md:text-xs font-medium transition-all ${state.mode === item.id ? 'border-purple-600 bg-purple-50 text-purple-700 shadow-sm' : 'border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`}
+          >
+            <div className="font-bold leading-tight">{item.label}</div>
+            <div className="text-[9px] opacity-80 mt-1">{item.desc}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col h-full bg-white">
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
          <span className="font-bold text-lg text-gray-900 tracking-tight">衔书又止</span>
          <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
              <button onClick={() => onTabChange && onTabChange('style')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'style' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>风格</button>
+           <button onClick={() => onTabChange && onTabChange('mode')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'mode' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>模式</button>
              <button onClick={() => onTabChange && onTabChange('content')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'content' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>内容</button>
              <button onClick={() => onTabChange && onTabChange('drafts')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'drafts' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>草稿</button>
              <button onClick={() => onTabChange && onTabChange('presets')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'presets' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>预设</button>
@@ -837,6 +891,7 @@ const EditorControls: React.FC<EditorControlsProps> = ({
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
          {activeTab === 'style' && renderStyleTab()}
+        {activeTab === 'mode' && renderModeTab()}
          {activeTab === 'content' && renderContentTab()}
          {activeTab === 'drafts' && renderDraftsTab()}
          {activeTab === 'presets' && renderPresetsTab()}
