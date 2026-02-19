@@ -362,8 +362,6 @@ export const MobileStylePanel: React.FC<EditorControlsProps> = ({ state, onChang
              <h4 className="text-[10px] font-bold text-gray-400 uppercase mb-2">布局模板</h4>
              <div className="grid grid-cols-4 gap-3">
               {[
-                { id: 'duality', label: '假作真时' },
-                { id: 'minimal', label: '机能档案' },
                 { id: 'storybook', label: '绘本蜡笔' },
               ].map((layout) => (
                 <button
@@ -480,20 +478,6 @@ export const ContentEditorModal: React.FC<{
               />
             </div>
             
-            {state.layoutStyle === 'duality' && (
-              <div>
-                <label className="text-xs font-bold text-gray-500 mb-1.5 block uppercase text-purple-600">正文（里象）</label>
-                 <div className="text-[10px] text-gray-400 mb-1">仅在“假作真时”风格下显示</div>
-                 <textarea
-                  value={state.secondaryBodyText}
-                  onChange={(e) => onChange({ secondaryBodyText: e.target.value })}
-                  className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-100 focus:border-purple-300 outline-none font-sans-sc text-sm resize-none"
-                  rows={3}
-                  placeholder="第二段正文..."
-                />
-              </div>
-            )}
-
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-bold text-gray-500 mb-1.5 block uppercase">分类</label>
@@ -754,19 +738,6 @@ const EditorControls: React.FC<EditorControlsProps> = ({
           />
         </div>
         
-        {state.layoutStyle === 'duality' && (
-          <div>
-            <label className="text-xs font-medium text-gray-500 mb-1.5 block">正文（里象）</label>
-            <textarea
-              value={state.secondaryBodyText}
-              onChange={(e) => onChange({ secondaryBodyText: e.target.value })}
-              className="w-full px-3 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-100 focus:border-purple-300 outline-none font-sans-sc transition-all text-sm resize-none"
-              rows={3}
-              placeholder="仅在“假作真时”风格下显示"
-            />
-          </div>
-        )}
-
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-xs font-medium text-gray-500 mb-1.5 block">分类标签</label>
@@ -806,8 +777,6 @@ const EditorControls: React.FC<EditorControlsProps> = ({
           
           <div className="grid grid-cols-4 gap-2">
             {[
-              { id: 'duality', label: '假作真时' },
-                { id: 'minimal', label: '机能档案' },
                 { id: 'storybook', label: '绘本蜡笔' },
             ].map((layout) => (
               <button

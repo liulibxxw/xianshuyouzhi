@@ -21,9 +21,11 @@ import ExportModal from './components/ExportModal';
 import RichTextToolbar from './components/RichTextToolbar';
 import { ArrowDownTrayIcon, PaintBrushIcon, BookmarkIcon, ArrowsRightLeftIcon, SparklesIcon, MagnifyingGlassIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import { toPng } from 'html-to-image';
+import { getCleanContent } from './components/nativeExport';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import navIcon from './assets/icon.png';
 
 const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;700;900&display=swap";
 const ZEOSEVEN_FONT_URL = "https://fontsapi.zeoseven.com/508/main/result.css";
@@ -117,7 +119,7 @@ const App: React.FC = () => {
       const saved = localStorage.getItem('coverState_v3');
       if (saved) {
         const parsed = JSON.parse(saved);
-        const savedLayout = parsed.layoutStyle === 'centered' ? 'minimal' : (parsed.layoutStyle || 'minimal');
+        const savedLayout = parsed.layoutStyle === 'storybook' ? 'storybook' : 'minimal';
         return {
            ...parsed,
            backgroundColor: parsed.backgroundColor || INITIAL_BG_COLOR,
@@ -129,7 +131,7 @@ const App: React.FC = () => {
       }
     } catch (e) { console.error("Failed to load state", e); }
     return {
-      title: INITIAL_TITLE, subtitle: INITIAL_SUBTITLE, bodyText: INITIAL_BODY_TEXT, secondaryBodyText: "", dualityBodyText: "", dualitySecondaryBodyText: "",
+      title: INITIAL_TITLE, subtitle: INITIAL_SUBTITLE, bodyText: INITIAL_BODY_TEXT, secondaryBodyText: "",
       category: INITIAL_CATEGORY, author: INITIAL_AUTHOR, backgroundColor: INITIAL_BG_COLOR, accentColor: INITIAL_ACCENT_COLOR, textColor: INITIAL_TEXT_COLOR,
       layoutStyle: 'minimal', mode: 'long-text', bodyTextSize: 'text-[13px]', bodyTextAlign: 'text-justify', isBodyBold: false, isBodyItalic: false,
     };
@@ -180,6 +182,50 @@ const App: React.FC = () => {
   }, [state.mode, previewScale]);
   const bgColorButtonRef = useRef<HTMLButtonElement>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
+  const previewScrollRef = useRef<HTMLDivElement>(null);
+
+  // 长文模式下阻止滚动容器在上下边界继续“过滑”露出灰底
+  useEffect(() => {
+    if (state.mode !== 'long-text') return;
+    const el = previewScrollRef.current;
+    if (!el) return;
+
+    const atTop = () => el.scrollTop <= 0;
+    const atBottom = () => el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+
+    const onWheel = (e: WheelEvent) => {
+      if ((e.deltaY < 0 && atTop()) || (e.deltaY > 0 && atBottom())) {
+        e.preventDefault();
+      }
+    };
+
+    let lastTouchY = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      if (!e.touches.length) return;
+      lastTouchY = e.touches[0].clientY;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!e.touches.length) return;
+      const currentY = e.touches[0].clientY;
+      const deltaY = lastTouchY - currentY;
+      lastTouchY = currentY;
+
+      if ((deltaY < 0 && atTop()) || (deltaY > 0 && atBottom())) {
+        e.preventDefault();
+      }
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+    };
+  }, [state.mode]);
 
   const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -227,13 +273,35 @@ const App: React.FC = () => {
     if (state.mode === 'long-text') {
       const containerH = container.clientHeight;
       const previewEl = previewRef.current;
-      const scrollHeight = previewEl ? previewEl.scrollHeight : container.scrollHeight;
+      const scrollHeight = (() => {
+        if (!previewEl) return container.scrollHeight;
+        // 避免 longTextMinHeight 造成“高度测量锁死”：
+        // 先临时去掉 minHeight 再读取真实内容高度，测量后恢复。
+        const prevMinHeight = previewEl.style.minHeight;
+        previewEl.style.minHeight = '0px';
+        const naturalHeight = previewEl.scrollHeight;
+        previewEl.style.minHeight = prevMinHeight;
+        return naturalHeight;
+      })();
       const desiredHeight = Math.max(containerH, scrollHeight * scale);
       setPreviewMinHeight(Math.ceil(desiredHeight / scale));
     } else {
       setPreviewMinHeight(0);
     }
   }, [state.mode]);
+
+  // 文本变化后重新计算长文最小高度，支持“长文删成短文”后自动回落
+  useEffect(() => {
+    if (state.mode !== 'long-text') return;
+    const raf = requestAnimationFrame(() => recomputePreviewMetrics());
+    return () => cancelAnimationFrame(raf);
+  }, [
+    state.mode,
+    state.bodyText,
+    state.secondaryBodyText,
+    state.layoutStyle,
+    recomputePreviewMetrics,
+  ]);
 
   useEffect(() => {
     const handleResize = () => recomputePreviewMetrics();
@@ -244,23 +312,7 @@ const App: React.FC = () => {
   }, [recomputePreviewMetrics, activeTab, state.layoutStyle]);
 
   const handleStateChange = useCallback((patch: Partial<CoverState>) => {
-    setState(prev => {
-        const redirectedPatch = { ...patch };
-        const currentLayout = redirectedPatch.layoutStyle || prev.layoutStyle;
-
-        if (currentLayout === 'duality' && (patch.layoutStyle === undefined || patch.layoutStyle === 'duality')) {
-            if (patch.bodyText !== undefined) {
-                redirectedPatch.dualityBodyText = patch.bodyText;
-                delete redirectedPatch.bodyText;
-            }
-            if (patch.secondaryBodyText !== undefined) {
-                redirectedPatch.dualitySecondaryBodyText = patch.secondaryBodyText;
-                delete redirectedPatch.secondaryBodyText;
-            }
-        }
-
-        return { ...prev, ...redirectedPatch };
-    });
+    setState(prev => ({ ...prev, ...patch }));
   }, []);
 
   const handleSavePreset = (name: string) => {
@@ -268,7 +320,6 @@ const App: React.FC = () => {
     const newPreset: ContentPreset = {
       id: newId, name, title: state.title, subtitle: state.subtitle,
       bodyText: state.bodyText, secondaryBodyText: state.secondaryBodyText,
-      dualityBodyText: state.dualityBodyText, dualitySecondaryBodyText: state.dualitySecondaryBodyText,
       category: state.category, author: state.author
     };
     setPresets(prev => [newPreset, ...prev]);
@@ -287,8 +338,6 @@ const App: React.FC = () => {
         subtitle: preset.subtitle,
         bodyText: preset.bodyText || prev.bodyText,
         secondaryBodyText: preset.secondaryBodyText || prev.secondaryBodyText,
-        dualityBodyText: preset.dualityBodyText || prev.dualityBodyText,
-        dualitySecondaryBodyText: preset.dualitySecondaryBodyText || prev.dualitySecondaryBodyText,
         category: preset.category,
         author: preset.author
     }));
@@ -420,11 +469,7 @@ const App: React.FC = () => {
         return tempDiv.innerHTML;
       };
       
-      if (state.layoutStyle === 'duality') {
-          handleStateChange({ dualityBodyText: processHtml(state.dualityBodyText), dualitySecondaryBodyText: processHtml(state.dualitySecondaryBodyText) });
-      } else {
-          handleStateChange({ bodyText: processHtml(state.bodyText), secondaryBodyText: processHtml(state.secondaryBodyText) });
-      }
+        handleStateChange({ bodyText: processHtml(state.bodyText), secondaryBodyText: processHtml(state.secondaryBodyText) });
   };
 
   const handleModalConfirm = () => {
@@ -432,7 +477,7 @@ const App: React.FC = () => {
       const newId = handleSavePreset(state.title || '未命名草稿');
       setActivePresetId(newId); setIsCreatingNew(false);
     } else if (activePresetId) {
-      setPresets(prev => prev.map(p => p.id === activePresetId ? { ...p, title: state.title, subtitle: state.subtitle, bodyText: state.bodyText, secondaryBodyText: state.secondaryBodyText, dualityBodyText: state.dualityBodyText, dualitySecondaryBodyText: state.dualitySecondaryBodyText, category: state.category, author: state.author, name: state.title || p.name } : p ));
+      setPresets(prev => prev.map(p => p.id === activePresetId ? { ...p, title: state.title, subtitle: state.subtitle, bodyText: state.bodyText, secondaryBodyText: state.secondaryBodyText, category: state.category, author: state.author, name: state.title || p.name } : p ));
     }
     setShowContentModal(false);
   };
@@ -461,8 +506,6 @@ const App: React.FC = () => {
       subtitle: '',
       bodyText: '',
       secondaryBodyText: '',
-      dualityBodyText: '',
-      dualitySecondaryBodyText: '',
       category: '',
       author: ''
     }));
@@ -471,6 +514,7 @@ const App: React.FC = () => {
 
   const handleExport = async (filename?: string) => {
     if (!previewRef.current) return;
+
     setIsExporting(true); 
     setExportImage(null); 
     if (filename) setExportFilename(filename);
@@ -479,18 +523,92 @@ const App: React.FC = () => {
     // ===== 使用 html-to-image 导出，支持 SVG 滤镜/阴影等 html2canvas 无法渲染的特性 =====
 
     try {
+      // 等待导出态样式真正落到 DOM（尤其是 Android WebView）
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
       await document.fonts.ready; 
       await new Promise(r => setTimeout(r, 200)); 
 
       const fontCss = await getEmbedFontCSS();
 
       const el = previewRef.current;
+      const bodyTextSizeMatch = state.bodyTextSize?.match(/text-\[(\d+(?:\.\d+)?)px\]/);
+      const exportBodyFontSizePx = bodyTextSizeMatch ? parseFloat(bodyTextSizeMatch[1]) : 13;
+
+      const mapTextAlign = (alignClass?: string): string => {
+        switch (alignClass) {
+          case 'text-left':
+            return 'left';
+          case 'text-center':
+            return 'center';
+          case 'text-right':
+            return 'right';
+          case 'text-justify':
+          default:
+            return 'justify';
+        }
+      };
+      const exportTextAlign = mapTextAlign(state.bodyTextAlign);
+
+      const sourceEditors = Array.from(el.querySelectorAll<HTMLElement>('[data-export-editor="true"]'));
+      const editorStyleSnapshot = sourceEditors.map((editor) => {
+        const computed = window.getComputedStyle(editor);
+        return {
+          color: computed.color,
+          paddingTop: computed.paddingTop,
+          paddingRight: computed.paddingRight,
+          paddingBottom: computed.paddingBottom,
+          paddingLeft: computed.paddingLeft,
+          marginTop: computed.marginTop,
+          marginRight: computed.marginRight,
+          marginBottom: computed.marginBottom,
+          marginLeft: computed.marginLeft,
+          minHeight: computed.minHeight,
+          height: computed.height,
+        };
+      });
 
       const exportOptions: any = {
         cacheBust: true,
         pixelRatio: 4, 
         backgroundColor: state.layoutStyle === 'storybook' ? '#FFF8F0' : state.backgroundColor,
         fontEmbedCSS: fontCss,
+        onClone: (_clonedDoc: Document, clonedRoot: HTMLElement) => {
+          // 仅在导出克隆树中做清洗，避免影响编辑区真实内容。
+          // 修复 Android WebView / APK 导出时偶发的“幽灵空行”。
+          const editors = clonedRoot.querySelectorAll<HTMLElement>('[data-export-editor="true"]');
+          editors.forEach((editor, index) => {
+            const snapshot = editorStyleSnapshot[index];
+            const staticEditor = _clonedDoc.createElement('div');
+            staticEditor.innerHTML = getCleanContent(editor.innerHTML);
+
+            staticEditor.style.display = 'block';
+            staticEditor.style.width = '100%';
+            staticEditor.style.outline = 'none';
+            staticEditor.style.overflowWrap = 'anywhere';
+            staticEditor.style.wordBreak = 'break-all';
+            staticEditor.style.whiteSpace = 'pre-wrap';
+
+            staticEditor.style.fontSize = `${exportBodyFontSizePx}px`;
+            staticEditor.style.lineHeight = '1.5';
+            staticEditor.style.fontFamily = '"Noto Serif SC", serif';
+            staticEditor.style.textAlign = exportTextAlign;
+
+            if (snapshot?.color) staticEditor.style.color = snapshot.color;
+            if (snapshot?.paddingTop) staticEditor.style.paddingTop = snapshot.paddingTop;
+            if (snapshot?.paddingRight) staticEditor.style.paddingRight = snapshot.paddingRight;
+            if (snapshot?.paddingBottom) staticEditor.style.paddingBottom = snapshot.paddingBottom;
+            if (snapshot?.paddingLeft) staticEditor.style.paddingLeft = snapshot.paddingLeft;
+            if (snapshot?.marginTop) staticEditor.style.marginTop = snapshot.marginTop;
+            if (snapshot?.marginRight) staticEditor.style.marginRight = snapshot.marginRight;
+            if (snapshot?.marginBottom) staticEditor.style.marginBottom = snapshot.marginBottom;
+            if (snapshot?.marginLeft) staticEditor.style.marginLeft = snapshot.marginLeft;
+            if (snapshot?.minHeight && snapshot.minHeight !== 'auto') staticEditor.style.minHeight = snapshot.minHeight;
+            if (snapshot?.height && snapshot.height !== 'auto') staticEditor.style.height = snapshot.height;
+
+            editor.replaceWith(staticEditor);
+          });
+        },
       };
 
       if (state.mode === 'cover') {
@@ -506,8 +624,24 @@ const App: React.FC = () => {
            overflow: 'visible',
         };
       } else {
-        // 长文模式：获取元素的完整内容高度，确保导出完整图片
-        const fullHeight = el.scrollHeight;
+        // 长文模式：测量自然高度（排除 UI 最小高度与容器遗留样式）
+        const prevMinHeight = el.style.minHeight;
+        const prevHeight = el.style.height;
+        const prevOverflow = el.style.overflow;
+
+        el.style.minHeight = '0px';
+        el.style.height = 'auto';
+        el.style.overflow = 'visible';
+
+        // 再等待一帧，确保样式生效后读取到稳定高度
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+
+        const fullHeight = Math.ceil(Math.max(el.scrollHeight, el.getBoundingClientRect().height));
+
+        el.style.minHeight = prevMinHeight;
+        el.style.height = prevHeight;
+        el.style.overflow = prevOverflow;
+
         exportOptions.width = 400;
         exportOptions.height = fullHeight;
         exportOptions.style = {
@@ -573,11 +707,7 @@ const App: React.FC = () => {
     }
   };
 
-  const effectivePreviewState = {
-    ...state,
-    bodyText: state.layoutStyle === 'duality' ? state.dualityBodyText : state.bodyText,
-    secondaryBodyText: state.layoutStyle === 'duality' ? state.dualitySecondaryBodyText : state.secondaryBodyText
-  };
+  const effectivePreviewState = state;
   const previewStateForDisplay = effectivePreviewState;
 
   return (
@@ -589,10 +719,10 @@ const App: React.FC = () => {
         <div className="lg:hidden h-14 bg-white border-b border-gray-200 flex items-center justify-center px-4 shrink-0 z-20 flex-none"><span className="font-bold text-gray-800 font-serif-sc">衔书又止</span></div>
         <div className="flex-1 relative overflow-hidden bg-gray-100/50 flex flex-col">
             <div ref={previewContainerRef} className="flex-1 relative overflow-hidden">
-               <div className="absolute inset-0 overflow-y-auto overflow-x-hidden flex flex-col items-center custom-scrollbar">
+               <div ref={previewScrollRef} className="absolute inset-0 overflow-y-auto overflow-x-hidden overscroll-y-none flex flex-col items-center custom-scrollbar" style={{ overscrollBehaviorY: 'none' }}>
                   <div className={`flex justify-center w-full ${state.mode === 'cover' ? 'flex-1 items-center p-4 lg:p-8 min-h-full' : 'items-start pt-0 px-4 lg:pt-0'}`}>
                     <div className="transition-transform duration-300 relative flex justify-center" style={{ transform: `scale(${previewScale})`, transformOrigin: state.mode === 'cover' ? 'center center' : 'top center', width: '400px', marginBottom: state.mode === 'long-text' && scaleMarginBottom > 0 ? `-${scaleMarginBottom}px` : undefined }}>
-                      <CoverPreview ref={previewRef} state={previewStateForDisplay} onBodyTextChange={val => handleStateChange({ bodyText: val })} onSecondaryBodyTextChange={val => handleStateChange({ secondaryBodyText: val })} isExporting={isExporting} longTextMinHeight={previewMinHeight} />
+                      <CoverPreview ref={previewRef} state={previewStateForDisplay} onBodyTextChange={val => handleStateChange({ bodyText: val })} isExporting={isExporting} longTextMinHeight={previewMinHeight} />
                     </div>
                   </div>
                </div>
@@ -619,7 +749,7 @@ const App: React.FC = () => {
                         className="w-12 h-12 rounded-full border-4 border-white shadow-lg -translate-y-4 bg-white flex items-center justify-center relative z-50 overflow-hidden"
                         style={{ backgroundColor: '#ffffff' }}
                       >
-                        <img src="/assets/icon.png" alt="APP" className="w-40 h-40 object-contain object-center scale-[2.5] translate-x-0.5" />
+                        <img src={navIcon} alt="APP" className="w-40 h-40 object-contain object-center scale-[2.5] translate-x-0.5" />
                       </button>
                       <button onClick={() => toggleMobileTab('search')} className={`flex flex-col items-center gap-1 transition-colors w-14 ${activeTab === 'search' ? 'text-purple-600' : 'text-gray-500'}`}><MagnifyingGlassIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">搜索</span></button>
                       <button onClick={handleModeToggle} className="flex flex-col items-center gap-1 text-gray-500 transition-colors w-14"><ArrowsRightLeftIcon className="w-6 h-6" /><span className="text-[10px] font-bold font-serif-sc">{state.mode === 'cover' ? '长图' : '封面'}</span></button>

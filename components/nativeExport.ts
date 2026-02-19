@@ -17,6 +17,34 @@ export const getCleanContent = (html: string): string => {
   const temp = document.createElement('div');
   temp.innerHTML = html;
 
+  // 对真正的块级富文本结构保持原样，避免误改语义。
+  // 但不再把带 class/style 的 div 一律视为“富文本块”，
+  // 以兼容 Android WebView 给普通行容器附加属性的场景。
+  const hasRichBlockStructure = !!temp.querySelector(
+    [
+      'p',
+      'blockquote',
+      'pre',
+      'ul',
+      'ol',
+      'li',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'h6',
+      'table',
+      'thead',
+      'tbody',
+      'tr',
+      'td',
+      'th',
+    ].join(',')
+  );
+
+  if (hasRichBlockStructure) return html;
+
   // Check if a single node is visually empty
   const isNodeEmpty = (node: Node): boolean => {
     if (node.nodeType === Node.TEXT_NODE) {
@@ -36,7 +64,7 @@ export const getCleanContent = (html: string): string => {
     return Array.from(el.childNodes).every(isNodeEmpty);
   };
 
-  // Flatten Android WebView <div> wrappers into plain <br> line breaks.
+  // Flatten Android WebView "plain" <div> wrappers into plain <br> line breaks.
   //
   // Android contentEditable wraps each line in a <div> (block element).
   // The first line is NOT wrapped, subsequent lines each get a <div>.
@@ -48,6 +76,33 @@ export const getCleanContent = (html: string): string => {
   //   - Insert <br> before each <div> if there is preceding content
   //   - Unwrap content from non-empty <div>s
   //   - Empty <div>s contribute nothing (the <br> alone represents the blank line)
+  const isPlainWrapperDiv = (el: HTMLElement): boolean => {
+    if (el.tagName.toLowerCase() !== 'div') return false;
+
+    // 若该 div 内部还有块级结构，视为语义段落，避免展开。
+    const hasNestedBlock = !!el.querySelector(
+      [
+        'div',
+        'p',
+        'blockquote',
+        'pre',
+        'ul',
+        'ol',
+        'li',
+        'h1',
+        'h2',
+        'h3',
+        'h4',
+        'h5',
+        'h6',
+        'table',
+      ].join(',')
+    );
+    if (hasNestedBlock) return false;
+
+    return true;
+  };
+
   const flattenDivs = (parent: HTMLElement) => {
     const children = Array.from(parent.childNodes);
 
@@ -58,6 +113,9 @@ export const getCleanContent = (html: string): string => {
 
       // Recursively handle nested divs first
       flattenDivs(el);
+
+      // 保留带样式/属性的段落块（如 text-align、class 等），避免破坏富文本结构
+      if (!isPlainWrapperDiv(el)) continue;
 
       const fragment = document.createDocumentFragment();
 
@@ -86,30 +144,56 @@ export const getCleanContent = (html: string): string => {
 
   flattenDivs(temp);
 
-  // Alias for trailing cleanup (same logic as isNodeEmpty)
-  const isEmpty = isNodeEmpty;
+  // 清理由于不稳定 DOM 结构导致的连续空行（保留最多 1 个空白段）
+  const collapseConsecutiveBr = (parent: HTMLElement, maxBrInARow = 2) => {
+    const children = Array.from(parent.childNodes);
+    let brRun = 0;
 
-  // Recursively remove trailing empty nodes
-  const removeTrailing = (parent: HTMLElement) => {
-    const nodes = Array.from(parent.childNodes);
-    for (let i = nodes.length - 1; i >= 0; i--) {
-      const node = nodes[i];
-
-      if (isEmpty(node)) {
-        parent.removeChild(node);
-      } else {
-        if (node.nodeType === Node.ELEMENT_NODE) {
-          removeTrailing(node as HTMLElement);
-          if (isEmpty(node)) {
-            parent.removeChild(node);
-            continue;
+    for (const node of children) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node as HTMLElement;
+        if (el.tagName.toLowerCase() === 'br') {
+          brRun += 1;
+          if (brRun > maxBrInARow) {
+            parent.removeChild(el);
           }
+          continue;
         }
-        break;
+
+        brRun = 0;
+        if (el.tagName.toLowerCase() !== 'pre') {
+          collapseConsecutiveBr(el, maxBrInARow);
+        }
+        continue;
       }
+
+      if (node.nodeType === Node.TEXT_NODE && !node.textContent?.trim()) {
+        continue;
+      }
+
+      brRun = 0;
     }
   };
 
+  collapseConsecutiveBr(temp);
+
+  // Alias for trailing cleanup (same logic as isNodeEmpty)
+  const isEmpty = isNodeEmpty;
+
+  // 清理首尾空行（中间空行保留）
+  const removeTrailing = (parent: HTMLElement) => {
+    while (parent.lastChild && isEmpty(parent.lastChild)) {
+      parent.removeChild(parent.lastChild);
+    }
+  };
+
+  const removeLeading = (parent: HTMLElement) => {
+    while (parent.firstChild && isEmpty(parent.firstChild)) {
+      parent.removeChild(parent.firstChild);
+    }
+  };
+
+  removeLeading(temp);
   removeTrailing(temp);
 
   return temp.innerHTML;

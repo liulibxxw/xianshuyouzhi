@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/pingfang-font.css" />
+    <link rel="stylesheet" href="/zeo.css" />
     <style>
       body {
         font-family: "Noto Serif SC", serif;
@@ -84,6 +85,12 @@
       h1, h2, h3, h4, h5, h6, p, div, span, input, textarea, button, a, label, select, option, li, ul, ol, nav, section, article, aside, header, footer, main, [contenteditable], [contenteditable] * {
         font-family: inherit !important;
       }
+      [data-ruled-editor],
+      [data-ruled-editor] * {
+        line-height: inherit !important;
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
 
       .font-pingfang {
         font-family: 'pingfangqignchunti', 'Noto Serif SC', serif !important;
@@ -91,6 +98,20 @@
 
       .font-serif-sc, .font-sans-sc, .font-bold-sc, .font-jianghu {
         font-family: 'Noto Serif SC', serif;
+      }
+
+      /* contenteditable 长串文本（如 sha256/纯数字）强制断行兜底 */
+      .editor-break,
+      .editor-break * {
+        overflow-wrap: anywhere !important;
+        word-break: break-all !important;
+        white-space: pre-wrap !important;
+      }
+
+      [data-export-editor="true"],
+      [data-export-editor="true"] * {
+        overflow-wrap: anywhere !important;
+        word-break: break-all !important;
       }
 
       #root {

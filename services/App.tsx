@@ -79,7 +79,7 @@ const App: React.FC = () => {
            textColor: parsed.textColor || INITIAL_TEXT_COLOR,
            titleFont: parsed.titleFont || 'serif',
            secondaryBodyText: parsed.secondaryBodyText || '',
-           layoutStyle: parsed.layoutStyle || 'minimal'
+            layoutStyle: parsed.layoutStyle === 'storybook' ? 'storybook' : 'minimal'
         };
       }
     } catch (e) {
@@ -136,7 +136,7 @@ const App: React.FC = () => {
     }
   });
   const [showContentModal, setShowContentModal] = useState(false);
-  const [activePresetId, setActivePresetId] = useState<string | null>('preset_jianghu');
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [showBgColorPalette, setShowBgColorPalette] = useState(false);
   const [previewScale, setPreviewScale] = useState(1);
@@ -438,7 +438,6 @@ const App: React.FC = () => {
                         ref={previewRef}
                         state={state}
                         onBodyTextChange={(val) => handleStateChange({ bodyText: val })}
-                        onSecondaryBodyTextChange={(val) => handleStateChange({ secondaryBodyText: val })}
                         isExporting={isExporting}
                         longTextMinHeight={previewMinHeight}
                     />

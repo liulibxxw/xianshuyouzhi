@@ -25,10 +25,12 @@ const RichTextToolbar: React.FC<RichTextToolbarProps> = ({ visible, state, onCha
   const [showTextColorPalette, setShowTextColorPalette] = useState(false);
   const [showSizePalette, setShowSizePalette] = useState(false);
   const [palettePosition, setPalettePosition] = useState<{left: number, bottom: number} | null>(null);
+  const [sizeDraft, setSizeDraft] = useState<number>(13);
 
   const [formatStates, setFormatStates] = useState({
     bold: false,
     italic: false,
+    underline: false,
     alignLeft: false,
     alignCenter: false,
     alignRight: false,
@@ -37,6 +39,7 @@ const RichTextToolbar: React.FC<RichTextToolbarProps> = ({ visible, state, onCha
   
   const toolbarRef = useRef<HTMLDivElement>(null);
   const paletteRef = useRef<HTMLDivElement>(null);
+  const savedRangeRef = useRef<Range | null>(null);
 
   const currentSizeVal = useMemo(() => {
       const match = state.bodyTextSize?.match(/text-\[(\d+)px\]/);
@@ -72,11 +75,22 @@ const RichTextToolbar: React.FC<RichTextToolbarProps> = ({ visible, state, onCha
       setFormatStates({
         bold: document.queryCommandState('bold'),
         italic: document.queryCommandState('italic'),
+        underline: document.queryCommandState('underline'),
         alignLeft: computedTextAlign === 'left' || computedTextAlign === 'start' || document.queryCommandState('justifyLeft'),
         alignCenter: computedTextAlign === 'center' || document.queryCommandState('justifyCenter'),
         alignRight: computedTextAlign === 'right' || computedTextAlign === 'end' || document.queryCommandState('justifyRight'),
         alignJustify: computedTextAlign === 'justify' || document.queryCommandState('justifyFull'),
       });
+
+      if (selection && selection.rangeCount > 0) {
+        const activeRange = selection.getRangeAt(0);
+        const node = activeRange.commonAncestorContainer;
+        const element = node.nodeType === 1 ? (node as HTMLElement) : node.parentElement;
+        const editor = element?.closest?.('[contenteditable="true"]');
+        if (editor) {
+          savedRangeRef.current = activeRange.cloneRange();
+        }
+      }
     };
 
     document.addEventListener('selectionchange', updateFormatStates);
@@ -170,6 +184,16 @@ const RichTextToolbar: React.FC<RichTextToolbarProps> = ({ visible, state, onCha
       e.preventDefault();
       if (showSizePalette) setShowSizePalette(false);
       else {
+          const selection = window.getSelection();
+          if (selection && selection.rangeCount > 0) {
+            const node = selection.anchorNode;
+            const element = node?.nodeType === 1 ? (node as HTMLElement) : node?.parentElement;
+            const computed = element ? parseFloat(window.getComputedStyle(element).fontSize) : NaN;
+            setSizeDraft(Number.isFinite(computed) && computed > 0 ? Math.round(computed) : currentSizeVal);
+            savedRangeRef.current = selection.getRangeAt(0).cloneRange();
+          } else {
+            setSizeDraft(currentSizeVal);
+          }
           calculatePalettePosition(e.currentTarget);
           setShowSizePalette(true);
           setShowTextColorPalette(false);
@@ -182,8 +206,61 @@ const RichTextToolbar: React.FC<RichTextToolbarProps> = ({ visible, state, onCha
       setShowTextColorPalette(false);
   };
 
+  const getEditorFromRange = (range: Range): HTMLElement | null => {
+    const node = range.commonAncestorContainer;
+    const element = node.nodeType === 1 ? (node as HTMLElement) : node.parentElement;
+    return element?.closest?.('[contenteditable="true"]') as HTMLElement | null;
+  };
+
+  const applyFontSizeToSelection = (newSize: number): boolean => {
+    const selection = window.getSelection();
+    let range: Range | null = null;
+
+    if (selection && selection.rangeCount > 0) {
+      const current = selection.getRangeAt(0);
+      if (getEditorFromRange(current)) {
+        range = current.cloneRange();
+      }
+    }
+
+    if (!range && savedRangeRef.current && getEditorFromRange(savedRangeRef.current)) {
+      range = savedRangeRef.current.cloneRange();
+    }
+
+    if (!range || range.collapsed) return false;
+
+    const editor = getEditorFromRange(range);
+    if (!editor) return false;
+
+    const restoredSelection = window.getSelection();
+    if (!restoredSelection) return false;
+
+    restoredSelection.removeAllRanges();
+    restoredSelection.addRange(range);
+
+    const span = document.createElement('span');
+    span.style.fontSize = `${newSize}px`;
+    const extracted = range.extractContents();
+    span.appendChild(extracted);
+    range.insertNode(span);
+
+    const nextRange = document.createRange();
+    nextRange.selectNodeContents(span);
+    restoredSelection.removeAllRanges();
+    restoredSelection.addRange(nextRange);
+    savedRangeRef.current = nextRange.cloneRange();
+
+    editor.dispatchEvent(new Event('input', { bubbles: true }));
+    document.dispatchEvent(new Event('selectionchange'));
+    return true;
+  };
+
   const handleSizeChange = (newSize: number) => {
-      onChange({ bodyTextSize: `text-[${newSize}px]` });
+      setSizeDraft(newSize);
+      const applied = applyFontSizeToSelection(newSize);
+      if (!applied) {
+        onChange({ bodyTextSize: `text-[${newSize}px]` });
+      }
   };
 
   const containerClass = "flex items-center gap-0.5 bg-white rounded-xl p-0.5 border border-gray-200 shadow-sm shrink-0";
@@ -202,6 +279,11 @@ const RichTextToolbar: React.FC<RichTextToolbarProps> = ({ visible, state, onCha
                 <div className={containerClass}>
                     <button onClick={() => handleFormat('bold')} className={formatStates.bold ? activeButtonClass : buttonClass} title="加粗"><BoldIcon className="w-5 h-5" /></button>
                     <button onClick={() => handleFormat('italic')} className={formatStates.italic ? activeButtonClass : buttonClass} title="斜体"><ItalicIcon className="w-5 h-5" /></button>
+                  <button onClick={() => handleFormat('underline')} className={formatStates.underline ? activeButtonClass : buttonClass} title="下划线">
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                      <path d="M6 3a1 1 0 0 1 1 1v6a5 5 0 1 0 10 0V4a1 1 0 1 1 2 0v6a7 7 0 1 1-14 0V4a1 1 0 0 1 1-1zm-1 17a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1z" />
+                    </svg>
+                  </button>
                 </div>
 
                 <div className={containerClass}>
@@ -223,16 +305,16 @@ const RichTextToolbar: React.FC<RichTextToolbarProps> = ({ visible, state, onCha
         {(showTextColorPalette || showSizePalette) && palettePosition && (
             <div 
                 ref={paletteRef}
-                className="fixed z-[60] bg-white border border-gray-100 shadow-xl rounded-xl p-3 flex flex-wrap justify-center gap-2 animate-in slide-in-from-bottom-2 fade-in lg:hidden"
+              className="fixed z-[60] bg-white border border-gray-100 shadow-xl rounded-xl p-3 flex flex-wrap justify-center gap-2 animate-in slide-in-from-bottom-2 fade-in lg:hidden interactive-area"
                 style={{ left: palettePosition.left, bottom: palettePosition.bottom, transform: 'translateX(-50%)', width: 'max-content', maxWidth: '90vw' }}
                 onMouseDown={preventFocusLoss} 
             >
                 {showSizePalette && (
-                    <div className="flex items-center gap-2 px-2 py-1">
+                <div className="flex items-center gap-2 px-2 py-1 interactive-area">
                         <button onClick={() => handleSizeChange(Math.max(10, currentSizeVal - 1))} className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-gray-100 rounded-full transition-colors"><MinusIcon className="w-4 h-4" /></button>
-                        <input type="range" min="10" max="40" step="1" value={currentSizeVal} onChange={(e) => handleSizeChange(parseInt(e.target.value))} className="w-32 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600" />
-                        <button onClick={() => handleSizeChange(Math.min(40, currentSizeVal + 1))} className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-gray-100 rounded-full transition-colors"><PlusIcon className="w-4 h-4" /></button>
-                        <span className="text-xs font-mono font-bold text-gray-600 w-8 text-center ml-1">{currentSizeVal}</span>
+                  <input type="range" min="10" max="40" step="1" value={sizeDraft} onInput={(e) => handleSizeChange(parseInt((e.target as HTMLInputElement).value, 10))} onChange={(e) => handleSizeChange(parseInt((e.target as HTMLInputElement).value, 10))} className="w-32 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600 interactive-area" />
+                  <button onClick={() => handleSizeChange(Math.min(40, sizeDraft + 1))} className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-gray-100 rounded-full transition-colors"><PlusIcon className="w-4 h-4" /></button>
+                  <span className="text-xs font-mono font-bold text-gray-600 w-8 text-center ml-1">{sizeDraft}</span>
                     </div>
                 )}
                 {showTextColorPalette && TEXT_PALETTE.map((color) => (

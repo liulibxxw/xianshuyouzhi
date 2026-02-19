@@ -5,15 +5,12 @@ export interface CoverState {
   subtitle: string;
   bodyText: string;
   secondaryBodyText: string;
-  // Independent text for duality layout
-  dualityBodyText: string;
-  dualitySecondaryBodyText: string;
   category: string;
   author: string;
   backgroundColor: string;
   accentColor: string;
   textColor: string;
-  layoutStyle: 'minimal' | 'duality' | 'storybook';
+  layoutStyle: 'minimal' | 'storybook';
   mode: 'cover' | 'long-text';
   bodyTextSize: string;
   bodyTextAlign: string;
@@ -30,9 +27,6 @@ export interface ContentPreset {
   subtitle: string;
   bodyText: string;
   secondaryBodyText?: string;
-  // Optional duality specific text in presets
-  dualityBodyText?: string;
-  dualitySecondaryBodyText?: string;
   category: string;
   author: string;
 }
